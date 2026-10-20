@@ -1,0 +1,45 @@
+{
+  "_default": "原生 Android",
+  "Flutter": {
+    "paths": ["assets/flutter_assets/", "libflutter.so", "isolate_snapshot_data", "vm_snapshot_data"]
+  },
+  "Unity": {
+    "paths": ["assets/bin/Data/", "libunity.so", "libil2cpp.so", "global-metadata.dat"]
+  },
+  "React Native": {
+    "paths": ["assets/index.android.bundle", "index.android.bundle", "libreactnativejni.so", "libhermes.so"]
+  },
+  "Xamarin / .NET MAUI": {
+    "paths": ["assemblies/", "libmonodroid.so", "libxamarin-app.so", "libSystem.Native.so"]
+  },
+  "Apache Cordova / Ionic": {
+    "paths": ["assets/www/cordova.js", "assets/www/cordova_plugins.js", "assets/www/build/main.js"]
+  },
+  "NativeScript": {
+    "paths": ["assets/app/tns_modules/", "assets/app/package.json", "libNativeScript.so"]
+  },
+  "uni-app / HBuilder": {
+    "paths": ["assets/apps/__UNI__", "assets/data/dcloud_control.xml", "libweexjss.so", "libso.so", "libdcloud.so"]
+  },
+  "Weex": {
+    "paths": ["libweexcore.so", "libweexjsb.so", "assets/weexplus.json"]
+  },
+  "Cocos2d-x": {
+    "paths": ["libcocos2dcpp.so", "libcocos.so", "assets/src/project.js", "assets/project.manifest"]
+  },
+  "Unreal Engine": {
+    "paths": ["libUE4.so", "libUnreal.so", "assets/UE4Game/", "assets/UnrealGame/"]
+  },
+  "Godot": {
+    "paths": ["libgodot_android.so", "assets/_cl_", "assets/.godot/"]
+  },
+  "Qt": {
+    "paths": ["libQt5Core.so", "libQt6Core.so", "assets/qt-reserved-files/", "libplugins_platforms_qtforandroid.so"]
+  },
+  "Solar2D / Corona": {
+    "paths": ["libcorona.so", "assets/resource.car", "assets/_corona_splash_screen.png"]
+  },
+  "Kivy / Python": {
+    "paths": ["assets/private.tar", "assets/public.tar", "libpython3.11.so", "libpython3.10.so", "libpython3.9.so"]
+  }
+}

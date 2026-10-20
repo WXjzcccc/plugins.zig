@@ -1,0 +1,23 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.zigtemplate"
+name = "模板"
+version = "0.2.0"
+protocol = 2
+# zigtemplate.dll / libzigtemplate.so / libzigtemplate.dylib — the library
+# build.zig produces. A name without a library extension resolves to the
+# platform file name.
+library = "zigtemplate"
+memory = "512MiB"
+
+# 基本信息分析：每个识别出的 Linux 系统运行一次，手动触发。
+[[analyzer]]
+id = "zigtemplateosrelease"
+name = "系统信息（模板）"
+scope = "system"
+platforms = ["linux"]
+trigger = "manual"
+category = "baseinfo"
+# The host resolves these patterns inside the system view and passes the
+# matches to run.start as inputs.
+inputs = ["etc/os-release", "usr/lib/os-release"]

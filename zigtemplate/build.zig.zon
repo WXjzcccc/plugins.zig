@@ -1,0 +1,22 @@
+.{
+    .name = .zigtemplate,
+    .version = "0.2.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0x90b8b8a6699c58b2,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // The shared plugin SDK. A plugin imports one module, `lovelycarve`,
+        // instead of carrying its own copy of the ABI, the wire codec, the
+        // record schemas and the entry point.
+        .lovelycarve = .{ .path = "../zig-sdk" },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "scripts",
+        "plugin.toml",
+        "README.md",
+    },
+}

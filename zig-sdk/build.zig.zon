@@ -1,0 +1,12 @@
+.{
+    .name = .lovelycarve_plugin,
+    .version = "0.2.0",
+    .fingerprint = 0xe5e0fa7d42b5087e,
+    .minimum_zig_version = "0.17.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+    },
+}

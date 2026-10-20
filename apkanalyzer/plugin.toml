@@ -1,0 +1,101 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.apkanalyzer"
+name = "APK 分析"
+version = "1.0.0"
+protocol = 2
+# apkanalyzer.dll / libapkanalyzer.so / libapkanalyzer.dylib, built from
+# build.zig; `library` is the build.zig artifact name without an extension.
+library = "apkanalyzer"
+memory = "2GiB"
+
+# 检材分析：扫描检材中的全部 APK，检材上线后自动运行。
+[[analyzer]]
+id = "apkevidence"
+name = "APK 分析"
+scope = "evidence"
+trigger = "auto"
+category = "fileanalyzer"
+inputs = ["**/*.apk"]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "info", label = "应用信息" },
+  { id = "components", label = "组件" },
+  { id = "permissions", label = "权限" },
+  { id = "features", label = "特性" },
+  { id = "metadata", label = "元数据" },
+  { id = "signing", label = "签名" },
+  { id = "detections", label = "加固与框架" },
+  { id = "diagnostics", label = "诊断" },
+  { id = "icon", label = "应用图标" },
+]
+
+[[analyzer.option]]
+id = "entries"
+type = "flag"
+label = "列出归档条目（单个 APK 可能上万条）"
+
+[[analyzer.option]]
+id = "locale"
+type = "text"
+label = "资源语言（如 zh-CN，留空使用默认资源）"
+
+[[analyzer.option]]
+id = "density"
+type = "text"
+label = "资源密度（dpi，如 480）"
+
+[[analyzer.option]]
+id = "max_size"
+type = "text"
+label = "最大 APK 大小（MiB，留空用 1024）"
+
+# 文件分析：分析用户在文件浏览器中选中的 APK；扩展名由宿主先行过滤。
+[[analyzer]]
+id = "apkfile"
+name = "APK 分析"
+scope = "files"
+trigger = "manual"
+category = "fileanalyzer"
+extensions = ["apk"]
+mime_types = ["application/vnd.android.package-archive"]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "info", label = "应用信息" },
+  { id = "components", label = "组件" },
+  { id = "permissions", label = "权限" },
+  { id = "features", label = "特性" },
+  { id = "metadata", label = "元数据" },
+  { id = "signing", label = "签名" },
+  { id = "detections", label = "加固与框架" },
+  { id = "diagnostics", label = "诊断" },
+  { id = "icon", label = "应用图标" },
+]
+
+[[analyzer.option]]
+id = "entries"
+type = "flag"
+label = "列出归档条目（单个 APK 可能上万条）"
+
+[[analyzer.option]]
+id = "locale"
+type = "text"
+label = "资源语言（如 zh-CN，留空使用默认资源）"
+
+[[analyzer.option]]
+id = "density"
+type = "text"
+label = "资源密度（dpi，如 480）"
+
+[[analyzer.option]]
+id = "max_size"
+type = "text"
+label = "最大 APK 大小（MiB，留空用 1024）"
