@@ -1,0 +1,21 @@
+.{
+    .name = .regf_zig,
+    // Tracks the upstream Rust crate this is a port of: regf-rs 0.1.1.
+    .version = "0.1.1",
+    // Generated once for this package; changing it has security and trust
+    // implications.
+    .fingerprint = 0xfcbb41aea56c00b6,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{},
+    // Only what compilation needs, plus the license and readme. The Rust
+    // reference (`regf-rs/`) and the hive fixtures (`testfiles/`) are local
+    // development inputs and are deliberately not part of the package.
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+    },
+}

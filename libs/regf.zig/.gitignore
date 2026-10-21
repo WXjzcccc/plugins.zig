@@ -1,0 +1,8 @@
+testfiles
+.zig-cache
+zig-out
+regf-rs
+
+# The `aaa` demo builds its own cache/prefix; keep them out of the tree.
+aaa/.zig-cache
+aaa/zig-out
