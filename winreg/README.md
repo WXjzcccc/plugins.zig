@@ -1,8 +1,8 @@
 # Windows 注册表分析插件（LPP v2 / SDK 0.2.0）
 
 把 ForensicsTool 的注册表取证分析（`analyzers/winreg`）复刻为 LovelyCarve 插件：
-从检材中的 **SYSTEM / SOFTWARE / SAM / NTUSER.DAT** 配置单元提取系统信息、网卡
-信息、用户账户（含 NT 密码哈希解密）与默认浏览器，写成带类型的记录。配置单元
+从检材中的 **SYSTEM / SOFTWARE / SECURITY / SAM / NTUSER.DAT** 配置单元提取系统
+信息、网卡信息、用户账户（含 NT 密码哈希解密）与默认浏览器，写成带类型的记录。配置单元
 （REGF 格式）的解析本身由本仓库的 `libs/regf.zig` 独立库完成，本插件只在其上
 实现取证问题；SAM 哈希解密用的 RC4 / DES / AES-CBC / MD5 来自
 [zig-cryptobin](https://github.com/WXjzcccc/zig-cryptobin)。
@@ -23,7 +23,7 @@
 |---|---|
 | `winreg.system` | 系统信息：Build、版本、计算机名称、安装时间、产品 ID、注册所有者/组织、时区、最后一次正常关机时间、产品密钥备份、上次登录的用户；每行一条，`source` 标明来自哪个配置单元 |
 | `winreg.network` | 当前控制集（`Select\Current`）每个 TCP/IP 接口：连接名称、IP/掩码/网关、当前与物理 MAC、DHCP 地址/网关/服务器与租约起止时间 |
-| `winreg.user` | SAM 用户：用户名、SID、RID、解密后的 NT 哈希、全名、描述、上次登录/改密/登录失败时间、登录次数、用户属性 |
+| `winreg.user` | SAM 用户：用户名、SID（机器 SID 来自 SECURITY 的 `PolMachineSid`，缺失时回退 SAM 域 `V` 值末 12 字节）、RID、解密后的 NT 哈希、全名、描述、上次登录/改密/登录失败时间、登录次数、用户属性 |
 | `winreg.browser` | 每个用户配置单元的 HTTP `UserChoice` ProgId（默认浏览器） |
 
 所有时间戳一律输出为绝对时刻（UTC），由宿主按界面时区渲染；`FILETIME` 为 0
@@ -49,7 +49,7 @@
 | 原实现 | 插件 | 原因 |
 |---|---|---|
 | 以哈希块首字节是否为 1 判断旧式/AES | 以域密钥数据的方案（`F` 的标记字节）判断 | 首字节实为 PekID；PekID≠1 的配置单元（如部分 Win7 镜像）会被误判为 AES 而解析失败 |
-| 域 `V` 值不足 424 字节时机器 SID 解析失败 | 缺 SID 前缀时 SID 输出 `-RID`、其余字段照常 | 与原实现的实际输出一致，但不再中断 |
+| 机器 SID 取域 `V` 值固定 408 字节偏移 | 优先读 SECURITY 的 `Policy\PolMachineSid`（标准二进制 SID），缺失时回退域 `V` 值末 12 字节（pypykatz 的做法） | 现代 SAM 的域 `V` 普遍短于 424 字节，固定偏移必然解析失败，SID 只能输出 `-RID` |
 
 ## 选项
 
@@ -58,7 +58,8 @@
 | `items` | multi | 要输出的子项（系统信息、网卡信息、用户信息、默认浏览器）；留空 = 全选 |
 
 缺少某个配置单元只影响对应子项并记运行告警：无 SOFTWARE → 系统信息、无 SYSTEM
-→ 网卡信息（且用户哈希不可解密）、无 SAM → 用户信息。
+→ 网卡信息（且用户哈希不可解密）、无 SAM → 用户信息；无 SECURITY → 机器 SID
+回退到 SAM 域 `V` 值推算，通常无影响。
 
 ## 构建与验证
 

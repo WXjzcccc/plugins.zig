@@ -27,11 +27,13 @@ pub fn main(init: std.process.Init) !void {
     var system_hive: ?hive_mod.Hive = null;
     var software_hive: ?hive_mod.Hive = null;
     var sam_hive: ?hive_mod.Hive = null;
+    var security_hive: ?hive_mod.Hive = null;
     var user_hives: std.ArrayList(hive_mod.Hive) = .empty;
     defer {
         if (system_hive) |*hive| hive.deinit();
         if (software_hive) |*hive| hive.deinit();
         if (sam_hive) |*hive| hive.deinit();
+        if (security_hive) |*hive| hive.deinit();
         for (user_hives.items) |*hive| hive.deinit();
         user_hives.deinit(gpa);
     }
@@ -57,6 +59,8 @@ pub fn main(init: std.process.Init) !void {
             software_hive = hive;
         } else if (std.ascii.eqlIgnoreCase(name, "SAM")) {
             sam_hive = hive;
+        } else if (std.ascii.eqlIgnoreCase(name, "SECURITY")) {
+            security_hive = hive;
         } else {
             try user_hives.append(gpa, hive);
         }
@@ -108,7 +112,7 @@ pub fn main(init: std.process.Init) !void {
         var values: std.heap.ArenaAllocator = .init(gpa);
         defer values.deinit();
         std.debug.print("\n== 用户信息 ==\n", .{});
-        const report = try profile.collectUsers(values.allocator(), if (system_hive) |*s| s else null, sam_hive_ref);
+        const report = try profile.collectUsers(values.allocator(), if (system_hive) |*s| s else null, if (security_hive) |*sec| sec else null, sam_hive_ref);
         std.debug.print("  hash availability: {s}\n", .{@tagName(report.hashes)});
         for (report.users) |user| {
             std.debug.print("  {s}  sid={s} rid={s}\n", .{ user.username, user.sid, user.rid });

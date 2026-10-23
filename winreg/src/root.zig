@@ -37,6 +37,7 @@ test {
     _ = @import("core/hive.zig");
     _ = @import("core/profile.zig");
     _ = @import("core/sam.zig");
+    _ = @import("core/security.zig");
     _ = @import("plugin/analyze.zig");
     _ = @import("plugin/run.zig");
     _ = @import("plugin/records.zig");

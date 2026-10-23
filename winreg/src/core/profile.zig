@@ -10,6 +10,7 @@ const std = @import("std");
 const hive_mod = @import("hive.zig");
 const bootkey = @import("bootkey.zig");
 const sam = @import("sam.zig");
+const security_mod = @import("security.zig");
 
 const Allocator = std.mem.Allocator;
 const Hive = hive_mod.Hive;
@@ -246,10 +247,12 @@ pub const UserReport = struct {
 };
 
 /// Collects the SAM user accounts. The SAM hive is required; the SYSTEM hive
-/// only matters for hash decryption.
+/// only matters for hash decryption and the SECURITY hive for the machine SID
+/// (its `PolMachineSid` value; the SAM domain V tail is the fallback).
 pub fn collectUsers(
     alloc: Allocator,
     system_hive: ?*Hive,
+    security_hive: ?*Hive,
     sam_hive: *Hive,
 ) error{OutOfMemory}!UserReport {
     const account_path = "SAM\\Domains\\Account";
@@ -259,7 +262,10 @@ pub fn collectUsers(
         return .{ .users = &.{}, .hashes = .malformed_sam };
     const domain_f = sam.DomainF.parse(f_value) orelse
         return .{ .users = &.{}, .hashes = .malformed_sam };
-    const sid_prefix = try sam.machineSid(v_value, alloc);
+    const sid_prefix = if (security_hive) |security| blk: {
+        break :blk (try security_mod.machineSid(security, alloc)) orelse
+            try sam.machineSidFromDomainV(v_value, alloc);
+    } else try sam.machineSidFromDomainV(v_value, alloc);
 
     // The user hash blobs follow the domain key data's scheme.
     const domain_is_aes = if (domain_f.key0) |key0| key0 == .aes else false;

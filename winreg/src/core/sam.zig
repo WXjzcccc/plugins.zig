@@ -218,15 +218,18 @@ fn readU32(data: []const u8, offset: usize) u32 {
     return std.mem.readInt(u32, &buffer, .little);
 }
 
-/// Machine SID from the `V` value of `SAM\Domains\Account`: 408 bytes in,
-/// four little-endian u32s (`S-1-5-a-b-c-d`).
-pub fn machineSid(data: []const u8, alloc: Allocator) error{OutOfMemory}![]const u8 {
-    if (data.len < 424) return "";
-    const domain_id = std.mem.readInt(u32, data[408..412], .little);
-    const sid1 = std.mem.readInt(u32, data[412..416], .little);
-    const sid2 = std.mem.readInt(u32, data[416..420], .little);
-    const sid3 = std.mem.readInt(u32, data[420..424], .little);
-    return std.fmt.allocPrint(alloc, "S-1-5-{d}-{d}-{d}-{d}", .{ domain_id, sid1, sid2, sid3 });
+/// Machine SID subauthorities from the `V` value of `SAM\Domains\Account`:
+/// the last 12 bytes are the three little-endian u32s after `S-1-5-21`
+/// (pypykatz' approach — it also works on the short `V` values modern
+/// machines write, where the fixed 408-byte offset the original used reads
+/// past the value). Returns "" when the value is too short.
+pub fn machineSidFromDomainV(data: []const u8, alloc: Allocator) error{OutOfMemory}![]const u8 {
+    if (data.len < 12) return "";
+    const tail = data[data.len - 12 ..];
+    const p1 = std.mem.readInt(u32, tail[0..4], .little);
+    const p2 = std.mem.readInt(u32, tail[4..8], .little);
+    const p3 = std.mem.readInt(u32, tail[8..12], .little);
+    return std.fmt.allocPrint(alloc, "S-1-5-21-{d}-{d}-{d}", .{ p1, p2, p3 });
 }
 
 // ---------------------------------------------------------------------------
@@ -431,13 +434,14 @@ test "userV reads strings at their documented offsets" {
     try testing.expectEqualStrings("admin", name);
 }
 
-test "machineSid formats the four u32 fields" {
-    var data: [424]u8 = @splat(0);
-    std.mem.writeInt(u32, data[408..412], 21, .little);
-    std.mem.writeInt(u32, data[412..416], 100, .little);
-    std.mem.writeInt(u32, data[416..420], 200, .little);
-    std.mem.writeInt(u32, data[420..424], 300, .little);
-    const sid = try machineSid(&data, testing.allocator);
+test "machineSidFromDomainV reads the last 12 bytes" {
+    var data: [272]u8 = @splat(0);
+    std.mem.writeInt(u32, data[260..264], 3009981523, .little);
+    std.mem.writeInt(u32, data[264..268], 787904381, .little);
+    std.mem.writeInt(u32, data[268..272], 4043190930, .little);
+    const sid = try machineSidFromDomainV(&data, testing.allocator);
     defer testing.allocator.free(sid);
-    try testing.expectEqualStrings("S-1-5-21-100-200-300", sid);
+    try testing.expectEqualStrings("S-1-5-21-3009981523-787904381-4043190930", sid);
+    // Too short: no SID.
+    try testing.expectEqualStrings("", try machineSidFromDomainV(data[0..11], testing.allocator));
 }

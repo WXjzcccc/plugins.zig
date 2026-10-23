@@ -76,6 +76,7 @@ fn message(run: *const lc.Run, comptime format: []const u8, args: anytype) lc.Er
 pub const Hives = struct {
     system: ?lc.FileRef = null,
     software: ?lc.FileRef = null,
+    security: ?lc.FileRef = null,
     sam: ?lc.FileRef = null,
     /// Every other `*.DAT` file (NTUSER.DAT and friends), original order.
     user_hives: []const lc.FileRef = &.{},
@@ -92,6 +93,8 @@ pub const Hives = struct {
                 hives.software = file;
             } else if (eqlName(name, "SAM")) {
                 hives.sam = file;
+            } else if (eqlName(name, "SECURITY")) {
+                hives.security = file;
             } else if (std.ascii.endsWithIgnoreCase(name, ".dat")) {
                 try user_hives.append(alloc, file);
             }
@@ -157,6 +160,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
     if (hives.system != null) found += 1;
     if (hives.software != null) found += 1;
     if (hives.sam != null) found += 1;
+    if (hives.security != null) found += 1;
     if (found == 0) {
         run.setSummary("没有发现 Windows 注册表配置单元");
         run.log(.info, "the run resolved no registry hive inputs");
@@ -165,7 +169,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
 
     // Parse every classified hive once.
     var parsed_count: usize = 0;
-    for ([_]?lc.FileRef{ hives.system, hives.software, hives.sam }) |maybe_file| {
+    for ([_]?lc.FileRef{ hives.system, hives.software, hives.security, hives.sam }) |maybe_file| {
         const file = maybe_file orelse continue;
         try loadHive(run, &parsed, &parsed_count, file, scratch);
     }
@@ -181,6 +185,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
     var system_hive: ?*hive_mod.Hive = null;
     var software_hive: ?*hive_mod.Hive = null;
     var sam_hive: ?*hive_mod.Hive = null;
+    var security_hive: ?*hive_mod.Hive = null;
     var system_path: []const u8 = "";
     var software_path: []const u8 = "";
     var sam_path: []const u8 = "";
@@ -196,6 +201,8 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
         } else if (eqlName(name, "SAM")) {
             sam_hive = &parsed_hive.hive;
             sam_path = parsed_hive.path;
+        } else if (eqlName(name, "SECURITY")) {
+            security_hive = &parsed_hive.hive;
         } else {
             try user_list.append(run_arena, parsed_hive);
         }
@@ -263,7 +270,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
     if (items.userinfo) {
         try run.progress(2, 4, "用户信息");
         if (sam_hive) |sam_hive_ref| {
-            const report = profile.collectUsers(run_arena, system_hive, sam_hive_ref) catch |err| switch (err) {
+            const report = profile.collectUsers(run_arena, system_hive, security_hive, sam_hive_ref) catch |err| switch (err) {
                 error.OutOfMemory => return error.OutOfMemory,
             };
             switch (report.hashes) {
