@@ -1,0 +1,27 @@
+.{
+    .name = .navicatanalyzer,
+    .version = "1.0.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0x2d88940c64cdfaf3,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // The shared plugin SDK. A plugin imports one module, `lovelycarve`,
+        // instead of carrying its own copy of the ABI, the wire codec, the
+        // record schemas and the entry point.
+        .lovelycarve = .{ .path = "../zig-sdk" },
+        // Windows registry hive (REGF) reader.
+        .regf_zig = .{ .path = "../libs/regf.zig" },
+        // Ciphers and hashes (AES-CBC-PKCS7, Blowfish, SHA-1) for the Navicat
+        // password schemes.
+        .zig_cryptobin = .{ .path = "../libs/zig-cryptobin" },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "scripts",
+        "plugin.toml",
+        "README.md",
+    },
+}

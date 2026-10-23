@@ -1,0 +1,30 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.navicat"
+name = "Navicat 连接分析"
+version = "1.0.0"
+protocol = 2
+# navicatanalyzer.dll / libnavicatanalyzer.so / libnavicatanalyzer.dylib,
+# built from build.zig; `library` is the build.zig artifact name without an
+# extension.
+library = "navicatanalyzer"
+memory = "2GiB"
+
+# 检材分析：在检材里找 NTUSER.DAT（Navicat 的连接信息存在每个用户的
+# NTUSER.DAT 里），上线后自动运行。
+[[analyzer]]
+id = "navicatevidence"
+name = "Navicat 连接分析"
+scope = "evidence"
+trigger = "auto"
+category = "baseinfo"
+inputs = ["**/NTUSER.DAT"]
+
+# 文件分析：分析用户在文件浏览器中选中的 NTUSER.DAT。
+[[analyzer]]
+id = "navicatfile"
+name = "Navicat 连接分析"
+scope = "files"
+trigger = "manual"
+category = "baseinfo"
+extensions = ["dat"]
