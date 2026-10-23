@@ -1,0 +1,3 @@
+[submodule "libs/zig-cryptobin"]
+	path = libs/zig-cryptobin
+	url = https://github.com/WXjzcccc/zig-cryptobin
