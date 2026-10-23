@@ -49,17 +49,17 @@
 zig build test                 # 单元测试（解析核心 + 插件层，含假宿主端到端）
 zig build                      # ReleaseSafe 动态库 -> zig-out/lib/mobaxtermanalyzer.dll
 zig build schema               # 从库导出 zig-out/schema.json
-zig build package              # -> ../dist/<id>-<version>-<platform>.lcpkg
+zig build package              # -> ../../../../dist/<id>-<version>-<platform>.lcpkg
 zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 ```
 
 ```sh
 # 用真实配置单元核对（libs/regf.zig/testfiles 的 SAM 中没有 MobaXterm 数据）
-zig-out/bin/probe.exe ../libs/regf.zig/testfiles/SAM
+zig-out/bin/probe.exe ../../../libs/regf.zig/testfiles/SAM
 zig-out/bin/probe.exe --master <主密码> <NTUSER.DAT>
 
 # 真宿主端到端（主密码经环境变量 DRIVE_OPTIONS 传入）
-DRIVE_OPTIONS='{"master_password":"<主密码>"}' python ../scripts/drive.py \
+DRIVE_OPTIONS='{"master_password":"<主密码>"}' python ../../../../scripts/drive.py \
     plugins/target/debug/lc-plugin-host.exe \
     zig-out/lib/mobaxtermanalyzer.dll <NTUSER.DAT> mobafile
 ```

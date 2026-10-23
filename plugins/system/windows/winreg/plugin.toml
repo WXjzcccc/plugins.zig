@@ -1,7 +1,7 @@
 # Package manifest (LPP v2). Labels are the Chinese defaults; translations
 # would live in locales/<locale>.toml under stable keys.
 id = "com.wxjzc.winreg"
-name = "Windows 注册表分析"
+name = "Windows 系统信息"
 version = "1.0.0"
 protocol = 2
 # winreganalyzer.dll / libwinreganalyzer.so / libwinreganalyzer.dylib, built
@@ -13,7 +13,7 @@ memory = "2GiB"
 # NTUSER.DAT），上线后自动运行。
 [[analyzer]]
 id = "winregevidence"
-name = "Windows 注册表分析"
+name = "Windows 系统信息"
 scope = "evidence"
 trigger = "manual"
 category = "baseinfo"

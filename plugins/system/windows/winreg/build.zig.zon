@@ -1,15 +1,19 @@
 .{
-    .name = .apkanalyzer,
+    .name = .winreganalyzer,
     .version = "1.0.0",
     // Zig 0.17 requires a fingerprint and derives it from the package name; if
     // you rename the package, take the value the compiler suggests.
-    .fingerprint = 0x63d03eb96c02dcae,
+    .fingerprint = 0xeec9bc5564e83eb,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         // The shared plugin SDK. A plugin imports one module, `lovelycarve`,
         // instead of carrying its own copy of the ABI, the wire codec, the
         // record schemas and the entry point.
-        .lovelycarve = .{ .path = "../zig-sdk" },
+        .lovelycarve = .{ .path = "../../../../zig-sdk" },
+        // Windows registry hive (REGF) reader.
+        .regf_zig = .{ .path = "../../../../libs/regf.zig" },
+        // Ciphers and hashes (RC4, DES, AES-CBC, MD5) for SAM hash decryption.
+        .zig_cryptobin = .{ .path = "../../../../libs/zig-cryptobin" },
     },
     .paths = .{
         "build.zig",

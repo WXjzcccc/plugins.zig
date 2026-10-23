@@ -1,4 +1,4 @@
-# Windows 注册表分析插件（LPP v2 / SDK 0.2.0）
+# Windows 系统信息插件（LPP v2 / SDK 0.2.0）
 
 把 ForensicsTool 的注册表取证分析（`analyzers/winreg`）复刻为 LovelyCarve 插件：
 从检材中的 **SYSTEM / SOFTWARE / SECURITY / SAM / NTUSER.DAT** 配置单元提取系统
@@ -67,7 +67,7 @@
 zig build test                 # 单元测试（解析核心 + 插件层，含假宿主端到端）
 zig build                      # ReleaseSafe 动态库 -> zig-out/lib/winreganalyzer.dll
 zig build schema               # 从库导出 zig-out/schema.json
-zig build package              # -> ../dist/<id>-<version>-<platform>.lcpkg
+zig build package              # -> ../../../../dist/<id>-<version>-<platform>.lcpkg
 zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 ```
 
@@ -75,9 +75,9 @@ zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 直接核对：
 
 ```sh
-zig-out/bin/probe.exe ../libs/regf.zig/testfiles/SYSTEM \
-                     ../libs/regf.zig/testfiles/SOFTWARE \
-                     ../libs/regf.zig/testfiles/SAM
+zig-out/bin/probe.exe ../../../libs/regf.zig/testfiles/SYSTEM \
+                     ../../../libs/regf.zig/testfiles/SOFTWARE \
+                     ../../../libs/regf.zig/testfiles/SAM
 ```
 
 用真宿主 `lc-plugin-host` 验证：
@@ -87,8 +87,8 @@ zig-out/bin/probe.exe ../libs/regf.zig/testfiles/SYSTEM \
 plugins/target/debug/lc-plugin-host.exe --describe --library zig-out/lib/winreganalyzer.dll
 
 # 2) 端到端：脚本扮演 LovelyCarve 那一侧，按真实 hive 应答 file.read
-python ../scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
+python ../../../../scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
     zig-out/lib/winreganalyzer.dll \
-    ../libs/regf.zig/testfiles/SYSTEM ../libs/regf.zig/testfiles/SOFTWARE \
-    ../libs/regf.zig/testfiles/SAM winregevidence
+    ../../../libs/regf.zig/testfiles/SYSTEM ../../../libs/regf.zig/testfiles/SOFTWARE \
+    ../../../libs/regf.zig/testfiles/SAM winregevidence
 ```

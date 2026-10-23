@@ -5,7 +5,8 @@
 //!   zig build package          # every plugin's .lcpkg -> dist/
 //!
 //! The per-plugin build recipes live here: one table row per plugin, holding
-//! the library name from its plugin.toml and the helper libraries it imports.
+//! its directory under `plugins/`, the library name from its plugin.toml and
+//! the helper libraries it imports.
 //! The individual plugin directories keep their own build.zig files for
 //! standalone development (their `package` steps use the same shared
 //! scripts/pack.zig and also write into dist/), but `zig build package` here
@@ -19,8 +20,11 @@
 const std = @import("std");
 
 const Plugin = struct {
-    /// Directory name of the plugin.
+    /// Short name, used for step and test names.
     name: []const u8,
+    /// Directory of the plugin source, relative to the repository root. The
+    /// layout mirrors the bundled plugin tree: `plugins/<group>/<plugin>`.
+    dir: []const u8,
     /// The `library` field of the plugin's plugin.toml (artifact name).
     library: []const u8,
     /// Whether the plugin's root module imports `regf_zig`.
@@ -30,10 +34,10 @@ const Plugin = struct {
 };
 
 const plugins = [_]Plugin{
-    .{ .name = "apkanalyzer", .library = "apkanalyzer" },
-    .{ .name = "winreg", .library = "winreganalyzer", .regf = true, .cryptobin = true },
-    .{ .name = "navicat", .library = "navicatanalyzer", .regf = true, .cryptobin = true },
-    .{ .name = "mobaxterm", .library = "mobaxtermanalyzer", .regf = true, .cryptobin = true },
+    .{ .name = "apkanalyzer", .dir = "plugins/evidence/apkanalyzer", .library = "apkanalyzer" },
+    .{ .name = "winreg", .dir = "plugins/system/windows/winreg", .library = "winreganalyzer", .regf = true, .cryptobin = true },
+    .{ .name = "navicat", .dir = "plugins/appinfo/windows/navicat", .library = "navicatanalyzer", .regf = true, .cryptobin = true },
+    .{ .name = "mobaxterm", .dir = "plugins/appinfo/windows/mobaxterm", .library = "mobaxtermanalyzer", .regf = true, .cryptobin = true },
 };
 
 pub fn build(b: *std.Build) void {
@@ -92,7 +96,7 @@ pub fn build(b: *std.Build) void {
     for (plugins) |plugin| {
         // The plugin library, ReleaseSafe for the target.
         const module = b.createModule(.{
-            .root_source_file = b.path(b.fmt("{s}/src/root.zig", .{plugin.name})),
+            .root_source_file = b.path(b.fmt("{s}/src/root.zig", .{plugin.dir})),
             .target = target,
             .optimize = optimize,
             // std.heap.c_allocator is libc malloc/free, so a buffer allocated
@@ -120,7 +124,7 @@ pub fn build(b: *std.Build) void {
 
         // The same plugin built for the host, tested in Debug.
         const host_root = b.createModule(.{
-            .root_source_file = b.path(b.fmt("{s}/src/root.zig", .{plugin.name})),
+            .root_source_file = b.path(b.fmt("{s}/src/root.zig", .{plugin.dir})),
             .target = b.graph.host,
             .optimize = .debug,
             .link_libc = true,
@@ -137,7 +141,7 @@ pub fn build(b: *std.Build) void {
         // schema.json, regenerated from the plugin on every package run so it
         // always matches the library that ships.
         const describe_module = b.createModule(.{
-            .root_source_file = b.path(b.fmt("{s}/src/describe.zig", .{plugin.name})),
+            .root_source_file = b.path(b.fmt("{s}/src/describe.zig", .{plugin.dir})),
             .target = b.graph.host,
             .optimize = .debug,
             .link_libc = true,
@@ -157,7 +161,7 @@ pub fn build(b: *std.Build) void {
         pack_run.addArg("dist");
         pack_run.addArgs(&.{ "--platform", platformName(target.result) });
         pack_run.addArg("--plugin");
-        pack_run.addFileArg(b.path(b.fmt("{s}/plugin.toml", .{plugin.name})));
+        pack_run.addFileArg(b.path(b.fmt("{s}/plugin.toml", .{plugin.dir})));
         pack_run.addArg("--library");
         pack_run.addArtifactArg(library);
         pack_run.addArg("--schema");

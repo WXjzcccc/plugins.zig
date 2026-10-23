@@ -6,7 +6,7 @@
 //!   zig build package                  # zig-out/<id>-<version>-<platform>.lcpkg
 //!
 //! The library is named exactly like `library` in plugin.toml
-//! (mobaxtermanalyzer -> mobaxtermanalyzer.dll / libmobaxtermanalyzer.so).
+//! (navicatanalyzer -> navicatanalyzer.dll / libnavicatanalyzer.so).
 
 const std = @import("std");
 
@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
     module.addImport("zig_cryptobin", cryptobin.module("zig_cryptobin"));
 
     const library = b.addLibrary(.{
-        .name = "mobaxtermanalyzer",
+        .name = "navicatanalyzer",
         .root_module = module,
         .linkage = .dynamic,
         // Pin the LLVM backend. On Windows 0.17 emits the import library
@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) void {
     host_root.addImport("regf_zig", host_regf.module("regf_zig"));
     host_root.addImport("zig_cryptobin", host_cryptobin.module("zig_cryptobin"));
     const tests = b.addTest(.{
-        .name = "mobaxtermanalyzer-test",
+        .name = "navicatanalyzer-test",
         .root_module = host_root,
     });
     b.step("test", "Run unit tests").dependOn(&b.addRunArtifact(tests).step);
@@ -139,7 +139,7 @@ pub fn build(b: *std.Build) void {
     // -------------------------------------------------------------- package
 
     const pack_module = b.createModule(.{
-        .root_source_file = b.path("../scripts/pack.zig"),
+        .root_source_file = b.path("../../../../scripts/pack.zig"),
         .target = b.graph.host,
         .optimize = .debug,
     });
@@ -148,7 +148,7 @@ pub fn build(b: *std.Build) void {
     // The staged directory and the archive are written under the install
     // prefix (zig-out unless `--prefix` says otherwise).
     pack_run.addArg("--out");
-    pack_run.addArg("../dist");
+    pack_run.addArg("../../../../dist");
     pack_run.addArgs(&.{ "--platform", platformName(target.result) });
     pack_run.addArg("--plugin");
     pack_run.addFileArg(b.path("plugin.toml"));

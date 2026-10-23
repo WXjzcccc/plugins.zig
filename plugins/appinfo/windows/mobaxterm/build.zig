@@ -6,7 +6,7 @@
 //!   zig build package                  # zig-out/<id>-<version>-<platform>.lcpkg
 //!
 //! The library is named exactly like `library` in plugin.toml
-//! (apkanalyzer -> apkanalyzer.dll / libapkanalyzer.so / libapkanalyzer.dylib).
+//! (mobaxtermanalyzer -> mobaxtermanalyzer.dll / libmobaxtermanalyzer.so).
 
 const std = @import("std");
 
@@ -31,6 +31,22 @@ pub fn build(b: *std.Build) void {
         .target = b.graph.host,
         .optimize = .debug,
     });
+    const regf = b.dependency("regf_zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const host_regf = b.dependency("regf_zig", .{
+        .target = b.graph.host,
+        .optimize = .debug,
+    });
+    const cryptobin = b.dependency("zig_cryptobin", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const host_cryptobin = b.dependency("zig_cryptobin", .{
+        .target = b.graph.host,
+        .optimize = .debug,
+    });
 
     // ------------------------------------------------------------- library
 
@@ -43,9 +59,11 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     module.addImport("lovelycarve", sdk.module("lovelycarve"));
+    module.addImport("regf_zig", regf.module("regf_zig"));
+    module.addImport("zig_cryptobin", cryptobin.module("zig_cryptobin"));
 
     const library = b.addLibrary(.{
-        .name = "apkanalyzer",
+        .name = "mobaxtermanalyzer",
         .root_module = module,
         .linkage = .dynamic,
         // Pin the LLVM backend. On Windows 0.17 emits the import library
@@ -69,11 +87,30 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     host_root.addImport("lovelycarve", host_sdk.module("lovelycarve"));
+    host_root.addImport("regf_zig", host_regf.module("regf_zig"));
+    host_root.addImport("zig_cryptobin", host_cryptobin.module("zig_cryptobin"));
     const tests = b.addTest(.{
-        .name = "apkanalyzer-test",
+        .name = "mobaxtermanalyzer-test",
         .root_module = host_root,
     });
     b.step("test", "Run unit tests").dependOn(&b.addRunArtifact(tests).step);
+
+    // --------------------------------------------------------------- probe
+
+    // Dev tool: run the analysis core over real hive files from disk.
+    const probe_module = b.createModule(.{
+        .root_source_file = b.path("src/probe.zig"),
+        .target = b.graph.host,
+        .optimize = .debug,
+        .link_libc = true,
+    });
+    probe_module.addImport("lovelycarve", host_sdk.module("lovelycarve"));
+    probe_module.addImport("regf_zig", host_regf.module("regf_zig"));
+    probe_module.addImport("zig_cryptobin", host_cryptobin.module("zig_cryptobin"));
+    const probe_exe = b.addExecutable(.{ .name = "probe", .root_module = probe_module });
+    const probe_install = b.addInstallArtifact(probe_exe, .{});
+    const probe_step = b.step("probe", "Build the registry analysis probe (zig-out/bin/probe)");
+    probe_step.dependOn(&probe_install.step);
 
     // --------------------------------------------------------------- schema
 
@@ -99,26 +136,10 @@ pub fn build(b: *std.Build) void {
     const schema_step = b.step("schema", "Write zig-out/schema.json from the library");
     schema_step.dependOn(&b.addInstallFileWithDir(schema_path, .prefix, "schema.json").step);
 
-    // ---------------------------------------------------------------- probe
-
-    // Dev tool: analyze one APK and validate every value it would emit.
-    const probe_module = b.createModule(.{
-        .root_source_file = b.path("src/probe.zig"),
-        .target = b.graph.host,
-        .optimize = .debug,
-        .link_libc = true,
-    });
-    probe_module.addImport("lovelycarve", host_sdk.module("lovelycarve"));
-    const probe_exe = b.addExecutable(.{ .name = "probe", .root_module = probe_module });
-    probe_exe.root_module.addImport("plugin", host_root);
-    const probe_install = b.addInstallArtifact(probe_exe, .{});
-    const probe_step = b.step("probe", "Build the APK analysis probe (zig-out/bin/probe)");
-    probe_step.dependOn(&probe_install.step);
-
     // -------------------------------------------------------------- package
 
     const pack_module = b.createModule(.{
-        .root_source_file = b.path("../scripts/pack.zig"),
+        .root_source_file = b.path("../../../../scripts/pack.zig"),
         .target = b.graph.host,
         .optimize = .debug,
     });
@@ -127,7 +148,7 @@ pub fn build(b: *std.Build) void {
     // The staged directory and the archive are written under the install
     // prefix (zig-out unless `--prefix` says otherwise).
     pack_run.addArg("--out");
-    pack_run.addArg("../dist");
+    pack_run.addArg("../../../../dist");
     pack_run.addArgs(&.{ "--platform", platformName(target.result) });
     pack_run.addArg("--plugin");
     pack_run.addFileArg(b.path("plugin.toml"));
