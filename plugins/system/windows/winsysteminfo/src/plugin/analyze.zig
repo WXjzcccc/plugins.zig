@@ -235,7 +235,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 }).emit();
             }
         } else {
-            try run.warn("WINREG_NO_SOFTWARE", "缺少 SOFTWARE 配置单元，跳过系统信息");
+            try run.warn("WINSYSTEMINFO_NO_SOFTWARE", "缺少 SOFTWARE 配置单元，跳过系统信息");
         }
     }
 
@@ -263,7 +263,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 }).emit();
             }
         } else {
-            try run.warn("WINREG_NO_SYSTEM", "缺少 SYSTEM 配置单元，跳过网卡信息");
+            try run.warn("WINSYSTEMINFO_NO_SYSTEM", "缺少 SYSTEM 配置单元，跳过网卡信息");
         }
     }
 
@@ -276,12 +276,12 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
             switch (report.hashes) {
                 .available => {},
                 .no_system_hive => try run.warn(
-                    "WINREG_NO_SYSTEM",
+                    "WINSYSTEMINFO_NO_SYSTEM",
                     "缺少 SYSTEM 配置单元，无法解密用户密码哈希",
                 ),
-                .no_boot_key => try run.warn("WINREG_NO_BOOTKEY", "未能从 SYSTEM 提取引导密钥，密码哈希未解密"),
-                .boot_key_rejected => try run.warn("WINREG_BOOTKEY_MISMATCH", "引导密钥校验未通过，密码哈希未解密"),
-                .malformed_sam => try run.warn("WINREG_SAM_MALFORMED", "SAM 配置单元结构异常，用户信息不完整"),
+                .no_boot_key => try run.warn("WINSYSTEMINFO_NO_BOOTKEY", "未能从 SYSTEM 提取引导密钥，密码哈希未解密"),
+                .boot_key_rejected => try run.warn("WINSYSTEMINFO_BOOTKEY_MISMATCH", "引导密钥校验未通过，密码哈希未解密"),
+                .malformed_sam => try run.warn("WINSYSTEMINFO_SAM_MALFORMED", "SAM 配置单元结构异常，用户信息不完整"),
             }
             for (report.users) |user| {
                 try run.record(records.USER_TYPE, &.{
@@ -301,7 +301,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 }).emit();
             }
         } else {
-            try run.warn("WINREG_NO_SAM", "缺少 SAM 配置单元，跳过用户信息");
+            try run.warn("WINSYSTEMINFO_NO_SAM", "缺少 SAM 配置单元，跳过用户信息");
         }
     }
 

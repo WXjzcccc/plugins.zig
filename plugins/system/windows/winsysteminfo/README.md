@@ -11,7 +11,7 @@
 
 | 分析器 | 作用域 | 触发 | 作用 |
 |---|---|---|---|
-| `winregevidence` | evidence | auto | 在检材里查找注册表配置单元（`inputs = ["**/SYSTEM", "**/SOFTWARE", "**/SAM", "**/*.DAT"]`，宿主按文件名匹配、大小写不敏感），上线后自动运行 |
+| `winsysteminfoevidence` | evidence | auto | 在检材里查找注册表配置单元（`inputs = ["**/SYSTEM", "**/SOFTWARE", "**/SAM", "**/*.DAT"]`，宿主按文件名匹配、大小写不敏感），上线后自动运行 |
 
 文件名决定配置单元的角色，与 ForensicsTool 的目录遍历一致：`SYSTEM`、
 `SOFTWARE`、`SAM` 各取一个，其余所有 `*.DAT` 视为用户配置单元（NTUSER.DAT
@@ -90,5 +90,5 @@ plugins/target/debug/lc-plugin-host.exe --describe --library zig-out/lib/winrega
 python ../../../../scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
     zig-out/lib/winreganalyzer.dll \
     ../../../libs/regf.zig/testfiles/SYSTEM ../../../libs/regf.zig/testfiles/SOFTWARE \
-    ../../../libs/regf.zig/testfiles/SAM winregevidence
+    ../../../libs/regf.zig/testfiles/SAM winsysteminfoevidence
 ```

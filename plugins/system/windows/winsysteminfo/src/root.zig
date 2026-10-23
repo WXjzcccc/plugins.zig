@@ -14,10 +14,10 @@ const analyzers = @import("plugin/run.zig");
 const records = @import("plugin/records.zig");
 
 /// Must match `id` in plugin.toml.
-pub const PLUGIN_ID = "com.wxjzc.winreg";
+pub const PLUGIN_ID = "com.wxjzc.winsysteminfo";
 
 /// Must match the analyzer id in plugin.toml.
-pub const EVIDENCE_ANALYZER = "winregevidence";
+pub const EVIDENCE_ANALYZER = "winsysteminfoevidence";
 
 pub const plugin = lc.Plugin{
     .id = PLUGIN_ID,

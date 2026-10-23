@@ -1,18 +1,18 @@
 # Package manifest (LPP v2). Labels are the Chinese defaults; translations
 # would live in locales/<locale>.toml under stable keys.
-id = "com.wxjzc.winreg"
+id = "com.wxjzc.winsysteminfo"
 name = "Windows 系统信息"
 version = "1.0.0"
 protocol = 2
 # winreganalyzer.dll / libwinreganalyzer.so / libwinreganalyzer.dylib, built
 # from build.zig; `library` is the build.zig artifact name without an extension.
-library = "winreganalyzer"
+library = "winsysteminfo"
 memory = "2GiB"
 
 # 检材分析：在检材里找 Windows 注册表配置单元（SYSTEM / SOFTWARE / SAM /
 # NTUSER.DAT），上线后自动运行。
 [[analyzer]]
-id = "winregevidence"
+id = "winsysteminfoevidence"
 name = "Windows 系统信息"
 scope = "evidence"
 trigger = "manual"

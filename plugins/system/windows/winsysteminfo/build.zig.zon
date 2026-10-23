@@ -1,9 +1,9 @@
 .{
-    .name = .winreganalyzer,
+    .name = .winsysteminfo,
     .version = "1.0.0",
     // Zig 0.17 requires a fingerprint and derives it from the package name; if
     // you rename the package, take the value the compiler suggests.
-    .fingerprint = 0xeec9bc5564e83eb,
+    .fingerprint = 0xd77a3df9c1aedfe6,
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         // The shared plugin SDK. A plugin imports one module, `lovelycarve`,

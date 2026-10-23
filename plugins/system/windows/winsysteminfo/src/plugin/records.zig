@@ -8,7 +8,7 @@ const std = @import("std");
 const lc = @import("lovelycarve");
 
 /// Record-type namespace; every type a plugin emits lives in its own.
-pub const NS = "winreg";
+pub const NS = "winsysteminfo";
 
 pub const SYSTEM_TYPE = NS ++ ".system";
 pub const NETWORK_TYPE = NS ++ ".network";

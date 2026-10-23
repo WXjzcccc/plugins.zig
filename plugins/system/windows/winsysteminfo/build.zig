@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
     module.addImport("zig_cryptobin", cryptobin.module("zig_cryptobin"));
 
     const library = b.addLibrary(.{
-        .name = "winreganalyzer",
+        .name = "winsysteminfo",
         .root_module = module,
         .linkage = .dynamic,
         // Pin the LLVM backend. On Windows 0.17 emits the import library
@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) void {
     host_root.addImport("regf_zig", host_regf.module("regf_zig"));
     host_root.addImport("zig_cryptobin", host_cryptobin.module("zig_cryptobin"));
     const tests = b.addTest(.{
-        .name = "winreganalyzer-test",
+        .name = "winsysteminfo-test",
         .root_module = host_root,
     });
     b.step("test", "Run unit tests").dependOn(&b.addRunArtifact(tests).step);

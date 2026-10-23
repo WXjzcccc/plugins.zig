@@ -35,7 +35,7 @@ const Plugin = struct {
 
 const plugins = [_]Plugin{
     .{ .name = "apkanalyzer", .dir = "plugins/evidence/apkanalyzer", .library = "apkanalyzer" },
-    .{ .name = "winreg", .dir = "plugins/system/windows/winreg", .library = "winreganalyzer", .regf = true, .cryptobin = true },
+    .{ .name = "winsysteminfo", .dir = "plugins/system/windows/winsysteminfo", .library = "winsysteminfo", .regf = true, .cryptobin = true },
     .{ .name = "navicat", .dir = "plugins/appinfo/windows/navicat", .library = "navicatanalyzer", .regf = true, .cryptobin = true },
     .{ .name = "mobaxterm", .dir = "plugins/appinfo/windows/mobaxterm", .library = "mobaxtermanalyzer", .regf = true, .cryptobin = true },
 };
