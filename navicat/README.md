@@ -46,7 +46,7 @@ Navicat 实际存储格式先 base64 解码，解不开再回落 Navicat 11 方�
 zig build test                 # 单元测试（解析核心 + 插件层，含假宿主端到端）
 zig build                      # ReleaseSafe 动态库 -> zig-out/lib/navicatanalyzer.dll
 zig build schema               # 从库导出 zig-out/schema.json
-zig build package              # -> zig-out/<id>-<version>-<platform>.lcpkg
+zig build package              # -> ../dist/<id>-<version>-<platform>.lcpkg
 zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 ```
 
@@ -56,6 +56,6 @@ zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 zig-out/bin/probe.exe ../libs/regf.zig/testfiles/SAM
 
 # 真宿主端到端
-python scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
+python ../scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
     zig-out/lib/navicatanalyzer.dll <NTUSER.DAT> navicatfile
 ```

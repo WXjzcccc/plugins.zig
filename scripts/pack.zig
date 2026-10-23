@@ -6,13 +6,12 @@
 //! or directly, from the plugin directory:
 //!
 //!   zig run scripts/pack.zig -- \
-//!       --out zig-out \
+//!       --out dist \
 //!       --platform windows-x64 \
 //!       --plugin plugin.toml \
 //!       --library zig-out/lib/zigtemplate.dll \
 //!       --schema zig-out/schema.json \
-//!       --readme README.md \
-//!       --locales locales
+//!       [--readme README.md] [--locales locales]
 //!
 //! It writes two things under `--out`:
 //!
@@ -20,8 +19,8 @@
 //!   <id>-<version>-<platform>.lcpkg     the archive of that directory
 //!
 //! The staged directory holds `plugin.toml`, the library under the platform
-//! file name the manifest resolves to, `schema.json`, `README.md`, an optional
-//! `locales/`, `build.json` (provenance) and `SHA256SUMS.txt` (one
+//! file name the manifest resolves to, `schema.json`, an optional `README.md`
+//! and `locales/`, `build.json` (provenance) and `SHA256SUMS.txt` (one
 //! `<hex>  <relative path>` line per file, sorted).
 //!
 //! The ZIP writer is built in: STORED entries (method 0) with a CRC-32, so no
@@ -37,15 +36,15 @@ const CHECKSUMS = "SHA256SUMS.txt";
 
 const usage =
     \\usage: pack --out <dir> --platform <tag> --plugin <plugin.toml>
-    \\            --library <library> --schema <schema.json> --readme <README.md>
-    \\            [--locales <dir>]
+    \\            --library <library> --schema <schema.json>
+    \\            [--readme <README.md>] [--locales <dir>]
     \\
     \\  --out       directory for the staged package and the .lcpkg archive
     \\  --platform  windows-x64 | linux-x64 | linux-arm64 | macos-x64 | macos-arm64
     \\  --plugin    the package manifest
     \\  --library   the built plugin library
     \\  --schema    schema.json produced from that library
-    \\  --readme    the package guide, shipped as README.md
+    \\  --readme    optional package guide, shipped as README.md
     \\  --locales   optional locales/ directory
     \\
 ;
@@ -74,7 +73,8 @@ const Arguments = struct {
     plugin: []const u8 = "",
     library: []const u8 = "",
     schema: []const u8 = "",
-    readme: []const u8 = "",
+    /// Optional package guide, shipped as README.md.
+    readme: ?[]const u8 = null,
     /// Optional translations directory.
     locales: ?[]const u8 = null,
 };
@@ -106,7 +106,7 @@ fn parseArguments(argv: []const [:0]const u8) !Arguments {
         }
     }
     if (parsed.platform.len == 0 or parsed.plugin.len == 0 or parsed.library.len == 0 or
-        parsed.schema.len == 0 or parsed.readme.len == 0)
+        parsed.schema.len == 0)
     {
         return error.MissingOption;
     }
@@ -163,10 +163,12 @@ fn pack(alloc: std.mem.Allocator, io: std.Io, arguments: Arguments) !void {
         .name = try alloc.dupe(u8, "schema.json"),
         .data = try cwd.readFileAlloc(io, arguments.schema, alloc, .limited(16 << 20)),
     });
-    try entries.append(alloc, .{
-        .name = try alloc.dupe(u8, "README.md"),
-        .data = try cwd.readFileAlloc(io, arguments.readme, alloc, .limited(16 << 20)),
-    });
+    if (arguments.readme) |readme| {
+        try entries.append(alloc, .{
+            .name = try alloc.dupe(u8, "README.md"),
+            .data = try cwd.readFileAlloc(io, readme, alloc, .limited(16 << 20)),
+        });
+    }
 
     // locales/, when the plugin ships translations.
     if (arguments.locales) |locales| {

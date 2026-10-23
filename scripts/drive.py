@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Drive the plugin through the real lc-plugin-host (LPP v2).
+"""Drive any LovelyCarve plugin through the real lc-plugin-host (LPP v2).
 
-    python scripts/drive.py <lc-plugin-host> <library> <file.apk> [more.apk ...] [analyzer]
+    python scripts/drive.py <lc-plugin-host> <library> <file> [more.files ...] [analyzer]
 
 The host binary bridges two peers: the plugin on one side and whatever speaks
 LPP on its stdin/stdout on the other. This script plays the application side, so
 it sees exactly what LovelyCarve sees: the plugin.hello handshake, then one
-run.start whose inputs are the given packages, answering the plugin's file.read
+run.start whose inputs are the given files, answering the plugin's file.read
 calls from those files, and printing the records it emits.
 
-The analyzer name (last argument, default apkfile) selects the entry point:
-apkfile expects the selected files, apkevidence expects everything the host
-resolved from the analyzer's declared inputs. Both receive the files as run
-inputs, which is why the driver only has to supply file.read.
+The analyzer name (optional last argument) selects the entry point; it must be
+one of the ids the plugin advertises. Without it the driver picks one from the
+handshake, preferring an evidence-scope analyzer (its id ends with
+"evidence") over a files-scope one. The target kind follows the same rule:
+evidence analyzers get an evidence target with a view, the rest a files
+target. Both receive the files as run inputs, which is why the driver only
+has to supply file.read.
 
 Frames are a 4-byte big-endian length followed by one MessagePack map. Host
 requests carry even ids, the loader's own requests odd ones (1 is the
@@ -27,9 +30,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-
-DEFAULT_ANALYZER = "winregevidence"
-
 
 # --------------------------------------------------------------- MessagePack
 
@@ -167,6 +167,14 @@ def write_frame(stream, message):
 
 # ------------------------------------------------------------------- driver
 
+def pick_analyzer(analyzers):
+    """Default analyzer: an evidence-scope one if advertised, else the first."""
+    for analyzer in analyzers:
+        if analyzer.endswith("evidence"):
+            return analyzer
+    return analyzers[0] if analyzers else None
+
+
 def serve(host_in, host_out, analyzer, packages, options):
     """Answer the plugin's host calls and run one analyzer over the packages."""
     records = []
@@ -187,11 +195,6 @@ def serve(host_in, host_out, analyzer, packages, options):
             "deleted": False,
             "timestamps": {},
         })
-    if analyzer.endswith("evidence"):
-        target = {"kind": "evidence", "view": {"view_id": "view-1", "label": "evidence"}}
-    else:
-        target = {"kind": "files"}
-
     while True:
         message = read_frame(host_in)
         if message is None:
@@ -200,6 +203,19 @@ def serve(host_in, host_out, analyzer, packages, options):
 
         if kind == "request" and message.get("id") == 1:
             hello = message["params"]
+            analyzers = [a for a in hello.get("analyzers") or []]
+            if analyzer is None:
+                analyzer = pick_analyzer(analyzers)
+            if analyzer not in analyzers:
+                print("error    -> analyzer {!r} not advertised; available: {}".format(
+                    analyzer, ", ".join(analyzers)))
+                return {"reason": "unknown analyzer", "records": records}
+            target = (
+                {"kind": "evidence", "view": {"view_id": "view-1", "label": "evidence"}}
+                if analyzer.endswith("evidence")
+                else {"kind": "files"}
+            )
+            print("analyzer ->", analyzer)
             print("hello    ->", json.dumps({
                 "protocol": hello.get("protocol"),
                 "plugin": hello.get("plugin"),
@@ -274,8 +290,8 @@ def main():
     host_binary = sys.argv[1]
     library = os.path.abspath(sys.argv[2])
     paths = sys.argv[3:]
-    analyzer = DEFAULT_ANALYZER
-    if paths[-1] == "winregevidence":
+    analyzer = None
+    if len(paths) > 1 and not os.path.exists(paths[-1]):
         analyzer = paths.pop()
     options = {}
     if os.environ.get("DRIVE_OPTIONS"):

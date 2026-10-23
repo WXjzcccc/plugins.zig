@@ -20,7 +20,6 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        "scripts",
         "plugin.toml",
         "README.md",
     },

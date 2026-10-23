@@ -83,7 +83,7 @@ src/
 zig build test                 # 单元测试（解析核心 + 插件层，含假宿主端到端）
 zig build                      # ReleaseSafe 动态库 -> zig-out/lib/apkanalyzer.dll
 zig build schema               # 从库导出 zig-out/schema.json
-zig build package              # -> zig-out/<id>-<version>-<platform>.lcpkg
+zig build package              # -> ../dist/<id>-<version>-<platform>.lcpkg
 zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 ```
 

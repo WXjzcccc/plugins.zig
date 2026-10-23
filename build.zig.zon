@@ -1,0 +1,21 @@
+.{
+    .name = .plugins,
+    .version = "0.1.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0xec85f671c93120bb,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // The shared plugin SDK every plugin imports as `lovelycarve`.
+        .lovelycarve = .{ .path = "zig-sdk" },
+        // Windows registry hive (REGF) reader.
+        .regf_zig = .{ .path = "libs/regf.zig" },
+        // Ciphers and hashes (RC4, DES, AES modes, Blowfish, SHA-2).
+        .zig_cryptobin = .{ .path = "libs/zig-cryptobin" },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "scripts",
+    },
+}

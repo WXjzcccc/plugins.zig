@@ -139,7 +139,7 @@ pub fn build(b: *std.Build) void {
     // -------------------------------------------------------------- package
 
     const pack_module = b.createModule(.{
-        .root_source_file = b.path("scripts/pack.zig"),
+        .root_source_file = b.path("../scripts/pack.zig"),
         .target = b.graph.host,
         .optimize = .debug,
     });
@@ -148,7 +148,7 @@ pub fn build(b: *std.Build) void {
     // The staged directory and the archive are written under the install
     // prefix (zig-out unless `--prefix` says otherwise).
     pack_run.addArg("--out");
-    pack_run.addDirectoryArg(.{ .relative = .{ .base = .install_prefix } });
+    pack_run.addArg("../dist");
     pack_run.addArgs(&.{ "--platform", platformName(target.result) });
     pack_run.addArg("--plugin");
     pack_run.addFileArg(b.path("plugin.toml"));
@@ -156,8 +156,6 @@ pub fn build(b: *std.Build) void {
     pack_run.addArtifactArg(library);
     pack_run.addArg("--schema");
     pack_run.addFileArg(schema_path);
-    pack_run.addArg("--readme");
-    pack_run.addFileArg(b.path("README.md"));
     // Optional: pack.zig skips a locales/ directory that does not exist. It is
     // passed as a plain argument (not addDirectoryArg) so a plugin without
     // translations does not fail the step, and the step always runs anyway.

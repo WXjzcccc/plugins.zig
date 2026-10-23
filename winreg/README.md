@@ -66,7 +66,7 @@
 zig build test                 # 单元测试（解析核心 + 插件层，含假宿主端到端）
 zig build                      # ReleaseSafe 动态库 -> zig-out/lib/winreganalyzer.dll
 zig build schema               # 从库导出 zig-out/schema.json
-zig build package              # -> zig-out/<id>-<version>-<platform>.lcpkg
+zig build package              # -> ../dist/<id>-<version>-<platform>.lcpkg
 zig build probe                # 开发工具 -> zig-out/bin/probe.exe
 ```
 
@@ -86,7 +86,7 @@ zig-out/bin/probe.exe ../libs/regf.zig/testfiles/SYSTEM \
 plugins/target/debug/lc-plugin-host.exe --describe --library zig-out/lib/winreganalyzer.dll
 
 # 2) 端到端：脚本扮演 LovelyCarve 那一侧，按真实 hive 应答 file.read
-python scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
+python ../scripts/drive.py plugins/target/debug/lc-plugin-host.exe \
     zig-out/lib/winreganalyzer.dll \
     ../libs/regf.zig/testfiles/SYSTEM ../libs/regf.zig/testfiles/SOFTWARE \
     ../libs/regf.zig/testfiles/SAM winregevidence
