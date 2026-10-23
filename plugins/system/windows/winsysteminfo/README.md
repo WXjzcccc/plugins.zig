@@ -21,13 +21,18 @@
 
 | 记录类型 | 内容 |
 |---|---|
-| `winreg.system` | 系统信息：Build、版本、计算机名称、安装时间、产品 ID、注册所有者/组织、时区、最后一次正常关机时间、产品密钥备份、上次登录的用户；每行一条，`source` 标明来自哪个配置单元 |
-| `winreg.network` | 当前控制集（`Select\Current`）每个 TCP/IP 接口：连接名称、IP/掩码/网关、当前与物理 MAC、DHCP 地址/网关/服务器与租约起止时间 |
-| `winreg.user` | SAM 用户：用户名、SID（机器 SID 来自 SECURITY 的 `PolMachineSid`，缺失时回退 SAM 域 `V` 值末 12 字节）、RID、解密后的 NT 哈希、全名、描述、上次登录/改密/登录失败时间、登录次数、用户属性 |
-| `winreg.browser` | 每个用户配置单元的 HTTP `UserChoice` ProgId（默认浏览器） |
+| `winsysteminfo.system` | 系统信息：Build、版本、计算机名称、安装时间、产品 ID、注册所有者/组织、时区、最后一次正常关机时间、产品密钥备份、上次登录的用户；每行一条，`source` 标明来自哪个配置单元 |
+| `winsysteminfo.network` | 当前控制集（`Select\Current`）每个 TCP/IP 接口：连接名称、IP/掩码/网关、当前与物理 MAC、DHCP 地址/网关/服务器与租约起止时间 |
+| `winsysteminfo.user` | SAM 用户：用户名、SID（机器 SID 来自 SECURITY 的 `PolMachineSid`，缺失时回退 SAM 域 `V` 值末 12 字节）、RID、解密后的 NT 哈希、全名、描述、上次登录/改密/登录失败时间、登录次数、用户属性 |
+| `winsysteminfo.browser` | 每个用户配置单元的 HTTP `UserChoice` ProgId（默认浏览器） |
 
 所有时间戳一律输出为绝对时刻（UTC），由宿主按界面时区渲染；`FILETIME` 为 0
 （从未发生）的时间不输出。
+
+记录的来源由系统来源（`.from`）承载——在软件里可直接"定位源文件"跳转到对应
+配置单元，不再单设"数据来源"列。唯一的例外是 `winsysteminfo.browser` 的 `hive`
+字段：一次运行覆盖多个用户的 NTUSER 配置单元，仅凭 ProgId 无法区分记录身份，
+因此按插件规范（`docs/PLUGIN_SPEC.md` 第二节）作为身份字段保留。
 
 ## SAM 哈希解密
 

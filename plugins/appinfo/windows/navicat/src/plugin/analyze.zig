@@ -131,7 +131,7 @@ fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc
             lc.wire.str(connection.auth_mode),
             if (connection.encrypted) |flag| .{ .boolean = flag } else .nil,
             if (connection.saved_password) |flag| .{ .boolean = flag } else .nil,
-        }).emit();
+        }).from(&file).emit();
         connections_total.* += 1;
     }
     return null;

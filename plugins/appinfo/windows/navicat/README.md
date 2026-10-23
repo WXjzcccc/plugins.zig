@@ -23,8 +23,10 @@
 |---|---|
 | `navicat.connection` | 连接名、连接类型（MySQL / MariaDB / MongoDB / Oracle / PostgreSQL / SQL Server / SQLite）、地址、端口、用户名、**解密后的密码**、缓存路径；SQL Server 另有默认数据库与认证模式，SQLite 另有是否加密、是否保存密码 |
 
-每个 `Software\PremiumSoft\<家族>\Servers\<连接>` 子键一行，`source` 列标明
-来自哪个配置单元。
+每个 `Software\PremiumSoft\<家族>\Servers\<连接>` 子键一行。记录的来源由系统
+来源（`.from`）承载——在软件里可直接"定位源文件"跳转到对应配置单元；`hive`
+字段按插件规范（`docs/PLUGIN_SPEC.md` 第二节）作为**身份字段**保留：一次运行
+覆盖多个用户的 NTUSER 配置单元，仅凭连接名无法区分记录。
 
 ## 密码解密
 

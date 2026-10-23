@@ -109,9 +109,11 @@ fn eqlName(name: []const u8, expected: []const u8) bool {
 }
 
 /// One parsed hive: the `regf` image plus the per-hive arena that owns every
-/// decoded value, so the whole hive is released in one go.
+/// decoded value, so the whole hive is released in one go. The file handle is
+/// kept so records can carry their system source.
 const ParsedHive = struct {
     path: []const u8,
+    file: lc.FileRef,
     hive: hive_mod.Hive,
     arena_state: *std.heap.ArenaAllocator,
 
@@ -130,6 +132,7 @@ const ParsedHive = struct {
         };
         return .{
             .path = run.context().arena.dupe(u8, displayPath(file)) catch return null,
+            .file = file,
             .hive = hive,
             .arena_state = arena,
         };
@@ -186,21 +189,21 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
     var software_hive: ?*hive_mod.Hive = null;
     var sam_hive: ?*hive_mod.Hive = null;
     var security_hive: ?*hive_mod.Hive = null;
-    var system_path: []const u8 = "";
-    var software_path: []const u8 = "";
-    var sam_path: []const u8 = "";
+    var system_file: ?lc.FileRef = null;
+    var software_file: ?lc.FileRef = null;
+    var sam_file: ?lc.FileRef = null;
     var user_list: std.ArrayList(*ParsedHive) = .empty;
     for (parsed.items) |*parsed_hive| {
         const name = std.fs.path.basename(parsed_hive.path);
         if (eqlName(name, "SYSTEM")) {
             system_hive = &parsed_hive.hive;
-            system_path = parsed_hive.path;
+            system_file = parsed_hive.file;
         } else if (eqlName(name, "SOFTWARE")) {
             software_hive = &parsed_hive.hive;
-            software_path = parsed_hive.path;
+            software_file = parsed_hive.file;
         } else if (eqlName(name, "SAM")) {
             sam_hive = &parsed_hive.hive;
-            sam_path = parsed_hive.path;
+            sam_file = parsed_hive.file;
         } else if (eqlName(name, "SECURITY")) {
             security_hive = &parsed_hive.hive;
         } else {
@@ -217,22 +220,24 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 error.OutOfMemory => return error.OutOfMemory,
             };
             for (items_out) |item| {
-                const source = if (std.mem.eql(u8, item.item, "计算机名称") or
+                const from_system = std.mem.eql(u8, item.item, "计算机名称") or
                     std.mem.eql(u8, item.item, "系统时区") or
-                    std.mem.eql(u8, item.item, "最后一次正常关机时间(本地时区)"))
-                    system_path
-                else
-                    software_path;
+                    std.mem.eql(u8, item.item, "最后一次正常关机时间(本地时区)");
                 var value: lc.wire.Value = .{ .string = item.value };
                 if (item.timestamp) |seconds| {
                     const timestamp = lc.record.Timestamp.fromUnix(seconds);
                     value = .{ .string = timestamp.asStr() };
                 }
-                try run.record(records.SYSTEM_TYPE, &.{
-                    lc.wire.str(source),
+                var emit = run.record(records.SYSTEM_TYPE, &.{
                     lc.wire.str(item.item),
                     value,
-                }).emit();
+                });
+                if (from_system) {
+                    emit = emit.from(&system_file.?);
+                } else {
+                    emit = emit.from(&software_file.?);
+                }
+                try emit.emit();
             }
         } else {
             try run.warn("WINSYSTEMINFO_NO_SOFTWARE", "缺少 SOFTWARE 配置单元，跳过系统信息");
@@ -245,9 +250,9 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
             const adapters = profile.collectNetwork(run_arena, system) catch |err| switch (err) {
                 error.OutOfMemory => return error.OutOfMemory,
             };
+            const system_file_ref = &system_file.?;
             for (adapters) |adapter| {
                 try run.record(records.NETWORK_TYPE, &.{
-                    lc.wire.str(system_path),
                     lc.wire.str(adapter.interface),
                     lc.wire.str(adapter.name),
                     lc.wire.str(adapter.ip),
@@ -260,7 +265,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                     lc.wire.str(adapter.dhcp_server),
                     timestampValue(adapter.lease_obtained),
                     timestampValue(adapter.lease_expires),
-                }).emit();
+                }).from(system_file_ref).emit();
             }
         } else {
             try run.warn("WINSYSTEMINFO_NO_SYSTEM", "缺少 SYSTEM 配置单元，跳过网卡信息");
@@ -283,9 +288,9 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 .boot_key_rejected => try run.warn("WINSYSTEMINFO_BOOTKEY_MISMATCH", "引导密钥校验未通过，密码哈希未解密"),
                 .malformed_sam => try run.warn("WINSYSTEMINFO_SAM_MALFORMED", "SAM 配置单元结构异常，用户信息不完整"),
             }
+            const sam_file_ref = &sam_file.?;
             for (report.users) |user| {
                 try run.record(records.USER_TYPE, &.{
-                    lc.wire.str(sam_path),
                     lc.wire.str(user.username),
                     lc.wire.str(user.sid),
                     lc.wire.str(user.nt_hash),
@@ -298,7 +303,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                     .{ .int = user.invalid_logon_count },
                     .{ .uint = user.user_attribute },
                     lc.wire.str(user.rid),
-                }).emit();
+                }).from(sam_file_ref).emit();
             }
         } else {
             try run.warn("WINSYSTEMINFO_NO_SAM", "缺少 SAM 配置单元，跳过用户信息");
@@ -315,7 +320,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
             try run.record(records.BROWSER_TYPE, &.{
                 lc.wire.str(parsed_hive.path),
                 lc.wire.str(progid),
-            }).emit();
+            }).from(&parsed_hive.file).emit();
         }
     }
 

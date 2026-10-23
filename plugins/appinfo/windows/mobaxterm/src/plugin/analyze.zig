@@ -137,7 +137,7 @@ fn analyzeFile(
             lc.wire.str(password.account_host),
             lc.wire.str(password.protocol),
             lc.wire.str(password.password),
-        }).emit();
+        }).from(&file).emit();
         found.* += 1;
     }
     for (report.credentials) |credential| {
@@ -146,7 +146,7 @@ fn analyzeFile(
             lc.wire.str(credential.name),
             lc.wire.str(credential.username),
             lc.wire.str(credential.password),
-        }).emit();
+        }).from(&file).emit();
         found.* += 1;
     }
     return null;

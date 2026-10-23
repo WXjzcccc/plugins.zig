@@ -1,4 +1,8 @@
 //! Record schema of the Navicat analyzer: one row per connection profile.
+//!
+//! The `hive` field is part of the record identity: one run covers every
+//! user's NTUSER.DAT, and a connection name alone does not distinguish two
+//! users' profiles (spec: identity fields are the allowed exception).
 
 const std = @import("std");
 const lc = @import("lovelycarve");
@@ -10,7 +14,7 @@ pub const CONNECTION_TYPE = NS ++ ".connection";
 
 /// One Navicat connection profile from an NTUSER hive.
 pub const CONNECTION = lc.RecordSchema.new(CONNECTION_TYPE, "Navicat 连接", &.{
-    lc.Field.new("source", "来源配置单元", .path).asKey(),
+    lc.Field.new("hive", "用户配置单元", .path).asKey(),
     lc.Field.new("name", "连接名", .text).asKey(),
     lc.Field.new("conn_type", "连接类型", .enumeration).withChoices(&.{
         .{ .id = "mysql", .label = "MySQL" },

@@ -1,8 +1,10 @@
 //! Record schemas of the Windows registry analyzer.
 //!
-//! Four tables, one per analyzer section. The first field of every table is
-//! the evidence path of the hive a row came from, so one run over several
-//! hives (and several user hives) keeps its rows distinguishable.
+//! Four tables, one per analyzer section. Where a row came from is the
+//! record's system source (`.from(&file)`), not a column — the exception is
+//! `BROWSER`, whose hive field is part of the record identity (one run
+//! covers one NTUSER-class hive per user, and the hive is the only user
+//! discriminator; see README).
 
 const std = @import("std");
 const lc = @import("lovelycarve");
@@ -17,14 +19,12 @@ pub const BROWSER_TYPE = NS ++ ".browser";
 
 /// One row per system information item (Build, owner, install date, …).
 pub const SYSTEM = lc.RecordSchema.new(SYSTEM_TYPE, "系统信息", &.{
-    lc.Field.new("source", "来源配置单元", .path).asKey(),
     lc.Field.new("item", "条目", .text).asKey(),
     lc.Field.new("field_value", "值", .text),
 }).withTitle("{item}");
 
 /// One row per TCP/IP interface of the current control set.
 pub const NETWORK = lc.RecordSchema.new(NETWORK_TYPE, "网卡信息", &.{
-    lc.Field.new("source", "来源配置单元", .path).asKey(),
     lc.Field.new("interface", "接口", .text).asKey(),
     lc.Field.new("name", "名称", .text),
     lc.Field.new("ip", "IP地址", .text),
@@ -41,7 +41,6 @@ pub const NETWORK = lc.RecordSchema.new(NETWORK_TYPE, "网卡信息", &.{
 
 /// One row per SAM user account.
 pub const USER = lc.RecordSchema.new(USER_TYPE, "用户信息", &.{
-    lc.Field.new("source", "来源配置单元", .path).asKey(),
     lc.Field.new("username", "用户名", .text).asKey(),
     lc.Field.new("sid", "SID", .text),
     lc.Field.new("nt_hash", "密码哈希", .hash),
@@ -56,9 +55,11 @@ pub const USER = lc.RecordSchema.new(USER_TYPE, "用户信息", &.{
     lc.Field.new("rid", "RID", .text),
 });
 
-/// One row per user hive with an HTTP association.
+/// One row per user hive with an HTTP association. The hive path is part of
+/// the record identity: one run covers several user hives and the ProgId
+/// alone does not distinguish them.
 pub const BROWSER = lc.RecordSchema.new(BROWSER_TYPE, "默认浏览器", &.{
-    lc.Field.new("source", "来源配置单元", .path).asKey(),
+    lc.Field.new("hive", "用户配置单元", .path).asKey(),
     lc.Field.new("progid", "ProgId", .text),
 }).withTitle("{progid}");
 

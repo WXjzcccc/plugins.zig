@@ -1,6 +1,6 @@
 .{
     .name = .navicatanalyzer,
-    .version = "1.0.0",
+    .version = "1.0.1",
     // Zig 0.17 requires a fingerprint and derives it from the package name; if
     // you rename the package, take the value the compiler suggests.
     .fingerprint = 0x2d88940c64cdfaf3,
