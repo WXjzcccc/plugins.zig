@@ -14,7 +14,7 @@ memory = "2GiB"
 id = "apkevidence"
 name = "APK 分析"
 scope = "evidence"
-trigger = "auto"
+trigger = "manual"
 category = "fileanalyzer"
 inputs = ["**/*.apk"]
 

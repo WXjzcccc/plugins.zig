@@ -16,7 +16,7 @@ memory = "2GiB"
 id = "navicatevidence"
 name = "Navicat 连接分析"
 scope = "evidence"
-trigger = "auto"
+trigger = "manual"
 category = "baseinfo"
 inputs = ["**/NTUSER.DAT"]
 

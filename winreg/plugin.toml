@@ -15,7 +15,7 @@ memory = "2GiB"
 id = "winregevidence"
 name = "Windows 注册表分析"
 scope = "evidence"
-trigger = "auto"
+trigger = "manual"
 category = "baseinfo"
 inputs = ["**/SYSTEM", "**/SOFTWARE", "**/SAM", "**/*.DAT"]
 

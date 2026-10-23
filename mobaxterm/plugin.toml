@@ -16,7 +16,7 @@ memory = "2GiB"
 id = "mobaevidence"
 name = "MobaXterm 凭据分析"
 scope = "evidence"
-trigger = "auto"
+trigger = "manual"
 category = "baseinfo"
 inputs = ["**/NTUSER.DAT"]
 
