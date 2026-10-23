@@ -2,7 +2,7 @@
 # would live in locales/<locale>.toml under stable keys.
 id = "com.wxjzc.mobaxterm"
 name = "MobaXterm 凭据分析"
-version = "1.0.1"
+version = "1.0.2"
 protocol = 2
 # mobaxtermanalyzer.dll / libmobaxtermanalyzer.so / libmobaxtermanalyzer.dylib,
 # built from build.zig; `library` is the build.zig artifact name without an

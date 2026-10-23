@@ -2,7 +2,7 @@
 # would live in locales/<locale>.toml under stable keys.
 id = "com.wxjzc.winsysteminfo"
 name = "Windows 系统信息"
-version = "1.0.1"
+version = "1.0.2"
 protocol = 2
 # winreganalyzer.dll / libwinreganalyzer.so / libwinreganalyzer.dylib, built
 # from build.zig; `library` is the build.zig artifact name without an extension.

@@ -117,27 +117,6 @@ const ParsedHive = struct {
     hive: hive_mod.Hive,
     arena_state: *std.heap.ArenaAllocator,
 
-    fn open(
-        run: *const lc.Run,
-        file: lc.FileRef,
-        buffer: []u8,
-    ) ?ParsedHive {
-        const arena = run.context().alloc.create(std.heap.ArenaAllocator) catch return null;
-        arena.* = std.heap.ArenaAllocator.init(std.heap.c_allocator);
-        errdefer run.context().alloc.destroy(arena);
-        const hive = hive_mod.Hive.open(arena.allocator(), buffer) catch {
-            arena.deinit();
-            run.context().alloc.destroy(arena);
-            return null;
-        };
-        return .{
-            .path = run.context().arena.dupe(u8, displayPath(file)) catch return null,
-            .file = file,
-            .hive = hive,
-            .arena_state = arena,
-        };
-    }
-
     fn deinit(self: *ParsedHive) void {
         self.hive.deinit();
         const child = std.heap.c_allocator;
@@ -214,6 +193,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
     const before = run.emitted();
 
     if (items.sysinfo) {
+        const section_before = run.emitted();
         try run.progress(0, 4, "系统信息");
         if (software_hive) |software| {
             const items_out = profile.collectSystemInfo(run_arena, system_hive, software) catch |err| switch (err) {
@@ -239,12 +219,15 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 }
                 try emit.emit();
             }
+            run.log(.info, try message(run, "系统信息完成，{d} 条记录", .{run.emitted() - section_before}));
         } else {
             try run.warn("WINSYSTEMINFO_NO_SOFTWARE", "缺少 SOFTWARE 配置单元，跳过系统信息");
+            run.log(.warn, "系统信息跳过：缺少 SOFTWARE 配置单元");
         }
     }
 
     if (items.netinfo) {
+        const section_before = run.emitted();
         try run.progress(1, 4, "网卡信息");
         if (system_hive) |system| {
             const adapters = profile.collectNetwork(run_arena, system) catch |err| switch (err) {
@@ -267,12 +250,15 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                     timestampValue(adapter.lease_expires),
                 }).from(system_file_ref).emit();
             }
+            run.log(.info, try message(run, "网卡信息完成，{d} 条记录", .{run.emitted() - section_before}));
         } else {
             try run.warn("WINSYSTEMINFO_NO_SYSTEM", "缺少 SYSTEM 配置单元，跳过网卡信息");
+            run.log(.warn, "网卡信息跳过：缺少 SYSTEM 配置单元");
         }
     }
 
     if (items.userinfo) {
+        const section_before = run.emitted();
         try run.progress(2, 4, "用户信息");
         if (sam_hive) |sam_hive_ref| {
             const report = profile.collectUsers(run_arena, system_hive, security_hive, sam_hive_ref) catch |err| switch (err) {
@@ -305,12 +291,15 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                     lc.wire.str(user.rid),
                 }).from(sam_file_ref).emit();
             }
+            run.log(.info, try message(run, "用户信息完成，{d} 条记录", .{run.emitted() - section_before}));
         } else {
             try run.warn("WINSYSTEMINFO_NO_SAM", "缺少 SAM 配置单元，跳过用户信息");
+            run.log(.warn, "用户信息跳过：缺少 SAM 配置单元");
         }
     }
 
     if (items.browser) {
+        const section_before = run.emitted();
         try run.progress(3, 4, "默认浏览器");
         for (user_list.items) |parsed_hive| {
             const progid = profile.collectBrowser(run_arena, &parsed_hive.hive) catch |err| switch (err) {
@@ -322,6 +311,7 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, items: Items) 
                 lc.wire.str(progid),
             }).from(&parsed_hive.file).emit();
         }
+        run.log(.info, try message(run, "默认浏览器完成，{d} 条记录", .{run.emitted() - section_before}));
     }
 
     try run.progress(4, 4, null);
@@ -346,36 +336,47 @@ fn loadHive(
 ) lc.Error!void {
     const path = displayPath(file);
     if (file.size() == 0) {
-        try run.warnFile(file, "HIVE_EMPTY", try message(run, "{s} is empty", .{path}));
+        const detail = try message(run, "{s} 是空文件，已跳过", .{path});
+        try run.warnFile(file, "HIVE_EMPTY", detail);
+        run.log(.warn, detail);
         return;
     }
     if (file.size() > MAX_HIVE_SIZE) {
-        try run.warnFile(file, "HIVE_TOO_LARGE", try message(
+        const detail = try message(
             run,
-            "{s} is {d} bytes; the limit is {d}",
+            "{s} 为 {d} 字节，超过上限 {d}，已跳过",
             .{ path, file.size(), MAX_HIVE_SIZE },
-        ));
+        );
+        try run.warnFile(file, "HIVE_TOO_LARGE", detail);
+        run.log(.warn, detail);
         return;
     }
     const buffer = readWhole(file, scratch, MAX_HIVE_SIZE) catch |err| {
-        try run.warnFile(file, "HIVE_READ_FAILED", try message(
-            run,
-            "reading {s} failed: {s}",
-            .{ path, @errorName(err) },
-        ));
+        const detail = try message(run, "读取 {s} 失败：{s}", .{ path, @errorName(err) });
+        try run.warnFile(file, "HIVE_READ_FAILED", detail);
+        run.log(.err, detail);
         return;
     };
     defer scratch.free(buffer);
-    const parsed_hive = ParsedHive.open(run, file, buffer) orelse {
-        try run.warnFile(file, "HIVE_PARSE_FAILED", try message(
-            run,
-            "{s} is not a Windows registry hive",
-            .{path},
-        ));
+    const arena = run.context().alloc.create(std.heap.ArenaAllocator) catch return error.OutOfMemory;
+    errdefer run.context().alloc.destroy(arena);
+    arena.* = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+    const inner = hive_mod.Hive.open(arena.allocator(), buffer) catch |err| {
+        arena.deinit();
+        run.context().alloc.destroy(arena);
+        const detail = try message(run, "解析 {s} 失败：{s}", .{ path, @errorName(err) });
+        try run.warnFile(file, "HIVE_PARSE_FAILED", detail);
+        run.log(.err, detail);
         return;
     };
-    try parsed.append(scratch, parsed_hive);
+    try parsed.append(scratch, .{
+        .path = try run.context().arena.dupe(u8, path),
+        .file = file,
+        .hive = inner,
+        .arena_state = arena,
+    });
     parsed_count.* += 1;
+    run.log(.info, try message(run, "已解析配置单元 {s}（{d} 字节）", .{ path, file.size() }));
 }
 
 /// A Unix timestamp value, or nil when the event never happened.

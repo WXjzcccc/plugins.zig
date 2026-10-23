@@ -78,15 +78,10 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef, settings: Sett
     for (inputs, 0..) |file, index| {
         try run.checkCancelled();
         try run.progress(index, inputs.len, displayPath(file));
-        const failure = try analyzeFile(run, file, settings, &found);
-        if (failure) |code| {
+        if (try analyzeFile(run, file, settings, &found)) |failure| {
             failed += 1;
-            try run.warnFile(file, code, try message(
-                run,
-                "{s} could not be analyzed as a registry hive",
-                .{displayPath(file)},
-            ));
-            run.log(.warn, "hive analysis failed");
+            try run.warnFile(file, failure.code, failure.message);
+            run.log(.err, failure.message);
         } else {
             analyzed += 1;
         }
@@ -107,28 +102,46 @@ fn message(run: *const lc.Run, comptime format: []const u8, args: anytype) lc.Er
     return std.fmt.allocPrint(run.context().arena, format, args);
 }
 
-/// Analyzes one hive; null on success, else the warning code.
+/// Why one hive could not be analyzed.
+pub const Failure = struct {
+    code: []const u8,
+    message: []const u8,
+};
+
+/// Analyzes one hive; null on success, else the failure for the run warning.
+/// Every stage logs: the input path up front, the detailed reason on failure,
+/// the per-hive result at the end.
 fn analyzeFile(
     run: *const lc.Run,
     file: lc.FileRef,
     settings: Settings,
     found: *u64,
-) lc.Error!?[]const u8 {
+) lc.Error!?Failure {
     const run_arena = run.context().arena;
     const path = displayPath(file);
-    if (file.size() == 0) return "HIVE_EMPTY";
-    if (file.size() > MAX_HIVE_SIZE) return "HIVE_TOO_LARGE";
+    run.log(.info, try message(run, "开始解析 {s}", .{path}));
+    if (file.size() == 0) {
+        return .{ .code = "HIVE_EMPTY", .message = try message(run, "{s} 是空文件，已跳过", .{path}) };
+    }
+    if (file.size() > MAX_HIVE_SIZE) {
+        return .{ .code = "HIVE_TOO_LARGE", .message = try message(
+            run,
+            "{s} 为 {d} 字节，超过上限 {d}，已跳过",
+            .{ path, file.size(), MAX_HIVE_SIZE },
+        ) };
+    }
 
     const buffer = readWhole(file, std.heap.c_allocator, MAX_HIVE_SIZE) catch |err| {
-        run.log(.warn, @errorName(err));
-        return "HIVE_READ_FAILED";
+        return .{ .code = "HIVE_READ_FAILED", .message = try message(run, "读取 {s} 失败：{s}", .{ path, @errorName(err) }) };
     };
     defer std.heap.c_allocator.free(buffer);
 
     var arena_state = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
-    var hive = hive_mod.Hive.open(arena, buffer) catch return "HIVE_PARSE_FAILED";
+    var hive = hive_mod.Hive.open(arena, buffer) catch |err| {
+        return .{ .code = "HIVE_PARSE_FAILED", .message = try message(run, "解析 {s} 失败：{s}", .{ path, @errorName(err) }) };
+    };
 
     const report = try mobaxterm.collect(run_arena, &hive, settings.master_password);
     for (report.passwords) |password| {
@@ -149,6 +162,7 @@ fn analyzeFile(
         }).from(&file).emit();
         found.* += 1;
     }
+    run.log(.info, try message(run, "解析 {s} 完成，{d} 个密码、{d} 个凭据", .{ path, report.passwords.len, report.credentials.len }));
     return null;
 }
 

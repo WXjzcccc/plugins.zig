@@ -71,17 +71,12 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef) lc.Error!void 
     for (inputs, 0..) |file, index| {
         try run.checkCancelled();
         try run.progress(index, inputs.len, displayPath(file));
-        const failure = try analyzeFile(run, file, &connections_total);
-        if (failure) |code| {
+        if (try analyzeFile(run, file, &connections_total)) |failure| {
             failed += 1;
             // A hive that cannot be read or parsed is a warning of the run,
             // not a failure: the other hives still produce results.
-            try run.warnFile(file, code, try message(
-                run,
-                "{s} could not be analyzed as a registry hive",
-                .{displayPath(file)},
-            ));
-            run.log(.warn, "hive analysis failed");
+            try run.warnFile(file, failure.code, failure.message);
+            run.log(.err, failure.message);
         } else {
             analyzed += 1;
         }
@@ -97,16 +92,32 @@ pub fn analyzeRun(run: *const lc.Run, inputs: []const lc.FileRef) lc.Error!void 
     run.log(.info, summary);
 }
 
-/// Analyzes one hive; null on success, else the warning code.
-fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc.Error!?[]const u8 {
+/// Why one hive could not be analyzed.
+pub const Failure = struct {
+    code: []const u8,
+    message: []const u8,
+};
+
+/// Analyzes one hive; null on success, else the failure for the run warning.
+/// Every stage logs: the input path up front, the detailed reason on failure,
+/// the per-hive result at the end.
+fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc.Error!?Failure {
     const path = displayPath(file);
     const run_arena = run.context().arena;
-    if (file.size() == 0) return "HIVE_EMPTY";
-    if (file.size() > MAX_HIVE_SIZE) return "HIVE_TOO_LARGE";
+    run.log(.info, try message(run, "开始解析 {s}", .{path}));
+    if (file.size() == 0) {
+        return .{ .code = "HIVE_EMPTY", .message = try message(run, "{s} 是空文件，已跳过", .{path}) };
+    }
+    if (file.size() > MAX_HIVE_SIZE) {
+        return .{ .code = "HIVE_TOO_LARGE", .message = try message(
+            run,
+            "{s} 为 {d} 字节，超过上限 {d}，已跳过",
+            .{ path, file.size(), MAX_HIVE_SIZE },
+        ) };
+    }
 
     const buffer = readWhole(file, std.heap.c_allocator, MAX_HIVE_SIZE) catch |err| {
-        run.log(.warn, @errorName(err));
-        return "HIVE_READ_FAILED";
+        return .{ .code = "HIVE_READ_FAILED", .message = try message(run, "读取 {s} 失败：{s}", .{ path, @errorName(err) }) };
     };
     defer std.heap.c_allocator.free(buffer);
 
@@ -114,7 +125,9 @@ fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc
     var arena_state = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
-    var hive = hive_mod.Hive.open(arena, buffer) catch return "HIVE_PARSE_FAILED";
+    var hive = hive_mod.Hive.open(arena, buffer) catch |err| {
+        return .{ .code = "HIVE_PARSE_FAILED", .message = try message(run, "解析 {s} 失败：{s}", .{ path, @errorName(err) }) };
+    };
 
     const connections = try navicat.collect(run_arena, &hive);
     for (connections) |connection| {
@@ -134,5 +147,6 @@ fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc
         }).from(&file).emit();
         connections_total.* += 1;
     }
+    run.log(.info, try message(run, "解析 {s} 完成，{d} 个 Navicat 连接", .{ path, connections.len }));
     return null;
 }
