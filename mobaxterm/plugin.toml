@@ -1,0 +1,40 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.mobaxterm"
+name = "MobaXterm 凭据分析"
+version = "1.0.0"
+protocol = 2
+# mobaxtermanalyzer.dll / libmobaxtermanalyzer.so / libmobaxtermanalyzer.dylib,
+# built from build.zig; `library` is the build.zig artifact name without an
+# extension.
+library = "mobaxtermanalyzer"
+memory = "2GiB"
+
+# 检材分析：在检材里找 NTUSER.DAT（MobaXterm 的保存密码存在每个用户的
+# NTUSER.DAT 里），上线后自动运行。
+[[analyzer]]
+id = "mobaevidence"
+name = "MobaXterm 凭据分析"
+scope = "evidence"
+trigger = "auto"
+category = "baseinfo"
+inputs = ["**/NTUSER.DAT"]
+
+[[analyzer.option]]
+id = "master_password"
+type = "text"
+label = "MobaXterm 主密码（未设置时留空）"
+
+# 文件分析：分析用户在文件浏览器中选中的 NTUSER.DAT。
+[[analyzer]]
+id = "mobafile"
+name = "MobaXterm 凭据分析"
+scope = "files"
+trigger = "manual"
+category = "baseinfo"
+extensions = ["dat"]
+
+[[analyzer.option]]
+id = "master_password"
+type = "text"
+label = "MobaXterm 主密码（未设置时留空）"
