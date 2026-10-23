@@ -1,0 +1,31 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.winreg"
+name = "Windows 注册表分析"
+version = "1.0.0"
+protocol = 2
+# winreganalyzer.dll / libwinreganalyzer.so / libwinreganalyzer.dylib, built
+# from build.zig; `library` is the build.zig artifact name without an extension.
+library = "winreganalyzer"
+memory = "2GiB"
+
+# 检材分析：在检材里找 Windows 注册表配置单元（SYSTEM / SOFTWARE / SAM /
+# NTUSER.DAT），上线后自动运行。
+[[analyzer]]
+id = "winregevidence"
+name = "Windows 注册表分析"
+scope = "evidence"
+trigger = "auto"
+category = "baseinfo"
+inputs = ["**/SYSTEM", "**/SOFTWARE", "**/SAM", "**/*.DAT"]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "sysinfo", label = "系统信息" },
+  { id = "netinfo", label = "网卡信息" },
+  { id = "userinfo", label = "用户信息" },
+  { id = "browser", label = "默认浏览器" },
+]
