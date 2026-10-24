@@ -1,9 +1,8 @@
 //! `ini.zig` — a small Windows-INI reader for forensic parsing.
 //!
-//! Windows applications (GameViewer/UU远程 among them) keep settings in
-//! classic INI files. This module parses such files into sections and
-//! entries without interpreting their meaning, so plugins can extract
-//! evidence from them.
+//! Windows applications keep settings in classic INI files. This module
+//! parses such files into sections and entries without interpreting their
+//! meaning, so plugins can extract evidence from them.
 //!
 //! Behaviour follows what forensic parsing needs, not the full diversity of
 //! INI dialects:
@@ -19,9 +18,8 @@
 //!   Every entry is still kept in order for record-level parsing.
 //! - Surrounding double quotes of a value are stripped (Windows convention).
 //! - `\xNNNN` escapes (four hex digits, UTF-16 code units, including
-//!   surrogate pairs) are decoded into UTF-8 — the escape style the
-//!   GameViewer files use for non-ASCII text (`\x6b64\x7535\x8111` =
-//!   "此电脑").
+//!   surrogate pairs) are decoded into UTF-8 — the escape style some
+//!   applications use to write non-ASCII text into ASCII-safe INI values.
 //! - Broken lines never fail the parse: they become `Issue`s with their line
 //!   number, and the rest of the document still parses.
 
