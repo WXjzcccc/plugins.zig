@@ -21,7 +21,7 @@ MIUI（Android 13， venus / Mi 11），核心格式解析不绑定厂商。
 | --- | --- | --- |
 | `androidsysteminfo.device` | 系统属性 | SYSTEM_BOOT / last-header 头（Build/Hardware/Kernel/Radio…）+ packages.xml 的 `<version>` 框架属性（sdkVersion/fingerprint…）；同名属性后解析的文件覆盖先解析的 |
 | `androidsysteminfo.boot` | 开机记录 | dropbox `SYSTEM_BOOT@<epoch-ms>` 条目，时间取自条目名；`历史开机` = isPrevious |
-| `androidsysteminfo.user` | 设备用户 | `users/<id>.xml`（ABX） |
+| `androidsysteminfo.user` | 设备用户 | `users/<id>.xml`（ABX，按文件名数字识别用户记录；`userlist.xml` 等清单骨架不含用户属性，忽略） |
 | `androidsysteminfo.log` | 运行日志 | bootlog.txt 全量 logcat（threadtime 格式），一条头行 + 其后续行合并为一条记录；时间 = 横幅年份+时区偏移与行内月日时分秒 |
 | `androidsysteminfo.entry` | 系统事件 | dropbox 条目（wtf 等，时间取条目名）与 ANR 记录（时间取 `----- pid N at ... +0800 -----`，缺省时回退文件名） |
 | `androidsysteminfo.app` | 应用列表 | packages.xml（ABX）为主，packages.list 补数据目录/seinfo；packages.xml 不可用时整体回退 packages.list |

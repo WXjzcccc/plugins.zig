@@ -208,6 +208,17 @@ const DeviceFacts = struct {
     }
 };
 
+///  — Android names each user's record file after its id.
+fn isUserIdXml(name: []const u8) bool {
+    if (!std.mem.endsWith(u8, name, ".xml")) return false;
+    const stem = name[0 .. name.len - 4];
+    if (stem.len == 0) return false;
+    for (stem) |char| {
+        if (char < '0' or char > '9') return false;
+    }
+    return true;
+}
+
 /// The boot.Header fields as device attributes.
 fn putHeaderFacts(facts: *DeviceFacts, arena: std.mem.Allocator, header: boot.Header, file: lc.FileRef) error{OutOfMemory}!void {
     if (header.build) |value| try facts.put(arena, "Build", value, file);
@@ -233,10 +244,12 @@ pub fn analyzeBaseinfo(run: *const lc.Run, inputs: []const lc.FileRef, items: Ba
             last_header = file;
         } else if (std.mem.eql(u8, name, "packages.xml")) {
             packages_file = file;
-        } else {
-            // data/system/users/<id>.xml
+        } else if (isUserIdXml(name)) {
+            // data/system/users/<id>.xml — one full record per user.
             try user_files.append(arena, file);
         }
+        // else: users/userlist.xml and other manifests are skeletons
+        // without user facts; ignored on purpose.
     }
 
     const before = run.emitted();
@@ -1396,4 +1409,12 @@ test "gunzipBytes round-trips a dropbox entry" {
 
     // Not gzip at all.
     try testing.expectError(error.GzipFailed, gunzipBytes(testing.allocator, "plain text", 1024));
+}
+
+test "user record files are named after the user id" {
+    try testing.expect(isUserIdXml("0.xml"));
+    try testing.expect(isUserIdXml("10.xml"));
+    try testing.expect(!isUserIdXml("userlist.xml"));
+    try testing.expect(!isUserIdXml("0.xml.fallback"));
+    try testing.expect(!isUserIdXml("packages.xml"));
 }
