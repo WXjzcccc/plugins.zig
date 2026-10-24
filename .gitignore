@@ -3,3 +3,4 @@ zig-pkg
 dist
 zig-out
 testfiles
+lc-plugin-host.exe
