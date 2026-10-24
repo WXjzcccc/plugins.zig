@@ -3,8 +3,8 @@
 //! Port of the registry part of ForensicsTool's Navicat extraction: the
 //! connection profiles (hosts, ports, users and saved passwords) that
 //! Navicat keeps under `Software\PremiumSoft` of every user's NTUSER.DAT,
-//! with the password decryption for both the Navicat 12+ (AES-128-CBC over
-//! base64) and Navicat 11 (Blowfish over hex) schemes. Hive parsing itself
+//! with the password decryption for both the Navicat 12+ (hex + AES-128-CBC)
+//! and Navicat 11 (hex + Blowfish) schemes. Hive parsing itself
 //! is `regf`, the standalone library in this repository.
 
 const std = @import("std");

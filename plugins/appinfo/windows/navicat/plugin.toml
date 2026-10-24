@@ -2,7 +2,7 @@
 # would live in locales/<locale>.toml under stable keys.
 id = "com.wxjzc.navicat"
 name = "Navicat 连接分析"
-version = "1.0.2"
+version = "1.0.3"
 protocol = 2
 # navicatanalyzer.dll / libnavicatanalyzer.so / libnavicatanalyzer.dylib,
 # built from build.zig; `library` is the build.zig artifact name without an

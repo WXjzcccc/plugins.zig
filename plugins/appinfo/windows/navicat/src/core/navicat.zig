@@ -2,13 +2,9 @@
 //!
 //! Port of ForensicsTool's `analyzers/extractor/tool/navicatTool.go` (registry
 //! part): the connection profiles under `Software\PremiumSoft` with their
-//! saved passwords, decrypted with the Navicat 12+ (AES-128-CBC over base64)
-//! or Navicat 11 (Blowfish over hex) scheme.
-//!
-//! One deliberate deviation: the original feeds the stored string to the
-//! cipher without base64-decoding the Navicat 12+ form, which cannot yield
-//! the plaintext. This port decodes base64 first, then falls back to the
-//! Navicat 11 hex form — the layouts Navicat actually writes.
+//! saved passwords, decrypted with the Navicat 12+ (hex + AES-128-CBC) or
+//! Navicat 11 (hex + Blowfish) scheme — both store the ciphertext as
+//! hexadecimal text.
 
 const std = @import("std");
 const cb = @import("zig_cryptobin");
@@ -104,7 +100,13 @@ pub fn collect(alloc: Allocator, hive: *Hive) error{OutOfMemory}![]Connection {
             connection.port = hive.dwordValue(path, "Port");
             connection.username = (try hive.stringValue(path, "UserName", alloc)) orelse "";
             connection.cache_path = (try hive.stringValue(path, "QuerySavePath", alloc)) orelse "";
-            if (try hive.stringValue(path, "Pwd", alloc)) |stored| {
+            // SQLite keeps the (encrypted-database) password under its own
+            // value; every other family uses `Pwd`.
+            const password_value = switch (kind) {
+                .sqlite => "EncryptionPassword",
+                else => "Pwd",
+            };
+            if (try hive.stringValue(path, password_value, alloc)) |stored| {
                 connection.password = decrypt(alloc, stored) catch |err| switch (err) {
                     error.OutOfMemory => return error.OutOfMemory,
                 };
@@ -138,9 +140,9 @@ const NAVICAT11_USER_KEY = "3DC5CA39";
 const NAVICAT12_KEY = "libcckeylibcckey";
 const NAVICAT12_IV = "libcciv libcciv ";
 
-/// Decrypts one stored password: Navicat 12+ (base64 + AES-128-CBC with
-/// PKCS7 padding) first, then Navicat 11 (hex + Blowfish). Returns "" when
-/// neither scheme fits.
+/// Decrypts one stored password: Navicat 12+ (hex + AES-128-CBC with PKCS7
+/// padding) first, then Navicat 11 (hex + Blowfish). Returns "" when neither
+/// scheme fits.
 pub fn decrypt(alloc: Allocator, stored: []const u8) error{OutOfMemory}![]const u8 {
     if (stored.len == 0) return "";
     if (decryptV12(alloc, stored) catch |err| switch (err) {
@@ -152,11 +154,11 @@ pub fn decrypt(alloc: Allocator, stored: []const u8) error{OutOfMemory}![]const 
     return "";
 }
 
-/// Navicat 12+: base64 of AES-128-CBC (PKCS7) ciphertext. Valid only when the
+/// Navicat 12+: hex of AES-128-CBC (PKCS7) ciphertext. Valid only when the
 /// plaintext is non-empty UTF-8 — the check the original uses to pick a
 /// scheme.
 fn decryptV12(alloc: Allocator, stored: []const u8) error{OutOfMemory}!?[]const u8 {
-    const ciphertext = base64Decode(alloc, stored) catch return null;
+    const ciphertext = hexDecode(alloc, stored) catch return null;
     defer alloc.free(ciphertext);
     if (ciphertext.len == 0 or ciphertext.len % 16 != 0) return null;
     var bin = cb.FromBytes(alloc, ciphertext) catch return null;
@@ -170,10 +172,13 @@ fn decryptV12(alloc: Allocator, stored: []const u8) error{OutOfMemory}!?[]const 
 }
 
 /// Navicat 11: hex of Blowfish-CBC ciphertext under the SHA-1 of the default
-/// user key. Trailing NULs from the block padding are trimmed.
+/// user key. The plaintext is stored unpadded — the ciphertext length is
+/// arbitrary and a partial final block is encrypted CFB-style, so the output
+/// keeps the input length.
 fn decryptV11(alloc: Allocator, stored: []const u8) error{OutOfMemory}!?[]const u8 {
     const ciphertext = hexDecode(alloc, stored) catch return null;
-    if (ciphertext.len == 0 or ciphertext.len % 8 != 0) return null;
+    defer alloc.free(ciphertext);
+    if (ciphertext.len == 0) return null;
     const plain = try decryptV11Bytes(alloc, ciphertext);
     if (plain.len == 0) return null;
     return plain;
@@ -240,17 +245,6 @@ pub const Navicat11Cipher = struct {
     }
 };
 
-/// Strict standard base64 decode (the host case does not accept whitespace).
-fn base64Decode(alloc: Allocator, text: []const u8) ![]u8 {
-    if (text.len == 0) return error.InvalidBase64;
-    const decoder = std.base64.standard.Decoder;
-    const size = decoder.calcSizeForSlice(text) catch return error.InvalidBase64;
-    const out = try alloc.alloc(u8, size);
-    errdefer alloc.free(out);
-    decoder.decode(out, text) catch return error.InvalidBase64;
-    return out;
-}
-
 fn hexDecode(alloc: Allocator, text: []const u8) ![]u8 {
     if (text.len == 0 or text.len % 2 != 0) return error.InvalidHex;
     const out = try alloc.alloc(u8, text.len / 2);
@@ -274,15 +268,48 @@ fn hexValue(char: u8) ?u8 {
 
 const testing = std.testing;
 
-test "navicat 11 cipher round trips" {
+test "navicat 12+ password round trips through hex" {
+    const alloc = testing.allocator;
+
+    // Encrypt the way Navicat stores a password: AES-128-CBC under the fixed
+    // key and IV, PKCS7-padded, then hex-encoded (Navicat writes uppercase).
+    var bin = try cb.FromBytes(alloc, "p@ssw0rd-12!");
+    defer bin.deinit();
+    _ = try bin.WithKey(NAVICAT12_KEY);
+    _ = try bin.WithIv(NAVICAT12_IV);
+    _ = try bin.Aes().CBC().PKCS7Padding().Encrypt();
+    const lower = try bin.ToHexString();
+    defer alloc.free(lower);
+    const stored = try alloc.dupe(u8, lower);
+    defer alloc.free(stored);
+    for (stored) |*char| char.* = std.ascii.toUpper(char.*);
+
+    const recovered = try decrypt(alloc, stored);
+    defer alloc.free(recovered);
+    try testing.expectEqualStrings("p@ssw0rd-12!", recovered);
+}
+
+test "navicat 11 cipher round trips full and partial blocks" {
     const cipher = try Navicat11Cipher.init(NAVICAT11_USER_KEY);
 
-    // The inverse of the decryption steps: each plaintext block is encrypted
-    // with the running chaining value, which then absorbs the ciphertext
-    // (the chaining rule ForensicsTool's Decrypt applies).
-    const plain = "secret-password!\x00\x00"; // NUL-padded to 16 bytes
-    const ciphertext = try testing.allocator.alloc(u8, plain.len);
-    defer testing.allocator.free(ciphertext);
+    // Navicat 11 stores the plaintext unpadded: full blocks go through the
+    // chained CBC steps, a partial final block through the CFB-style tail.
+    for ([_][]const u8{ "secret-password!", "root123456", "12345", "1" }) |plain| {
+        const ciphertext = try encryptV11ForTest(testing.allocator, &cipher, plain);
+        defer testing.allocator.free(ciphertext);
+        const recovered = try cipher.decrypt(testing.allocator, ciphertext);
+        defer testing.allocator.free(recovered);
+        try testing.expectEqualSlices(u8, plain, recovered);
+    }
+}
+
+/// The inverse of `Navicat11Cipher.decrypt` (the chaining rule ForensicsTool's
+/// Decrypt applies): each plaintext block is encrypted with the running
+/// chaining value, which then absorbs the ciphertext; a partial final block
+/// is XORed with the CFB-style keystream.
+fn encryptV11ForTest(alloc: Allocator, cipher: *const Navicat11Cipher, plain: []const u8) ![]u8 {
+    const ciphertext = try alloc.alloc(u8, plain.len);
+    errdefer alloc.free(ciphertext);
     var cv = cipher.iv;
     for (0..plain.len / 8) |index| {
         var block: [8]u8 = undefined;
@@ -290,7 +317,6 @@ test "navicat 11 cipher round trips" {
         cipher.context.encrypt(ciphertext[index * 8 ..][0..8], block);
         for (&cv, ciphertext[index * 8 ..][0..8]) |*chain, byte| chain.* ^= byte;
     }
-    // The CFB-style tail for the bytes past the last full block.
     const tail_start = plain.len / 8 * 8;
     const tail_len = plain.len % 8;
     if (tail_len != 0) {
@@ -300,10 +326,26 @@ test "navicat 11 cipher round trips" {
             ciphertext[tail_start + index] = plain[tail_start + index] ^ stream[index];
         }
     }
+    return ciphertext;
+}
 
-    const recovered = try cipher.decrypt(testing.allocator, ciphertext);
-    defer testing.allocator.free(recovered);
-    try testing.expectEqualSlices(u8, plain, recovered);
+test "decrypt recovers real stored passwords" {
+    // Vectors from a real NTUSER.DAT (Navicat 11 scheme): uppercase hex,
+    // unpadded, from one ciphertext byte up to full blocks.
+    const cases = [_]struct { stored: []const u8, plain: []const u8 }{
+        .{ .stored = "15", .plain = "1" },
+        .{ .stored = "15057D7EA4", .plain = "12312" },
+        .{ .stored = "5658213B", .plain = "root" },
+        .{ .stored = "15057D7BA390", .plain = "123456" },
+        .{ .stored = "7095E023DFC0E71C42C5", .plain = "root123456" },
+        .{ .stored = "2620B6512385244F", .plain = "Aa123456" },
+        .{ .stored = "54B5175B2ED908A291A323D02F378176", .plain = "eea11854a079626b" },
+    };
+    for (cases) |case| {
+        const recovered = try decrypt(testing.allocator, case.stored);
+        defer testing.allocator.free(recovered);
+        try testing.expectEqualStrings(case.plain, recovered);
+    }
 }
 
 test "hex decode accepts upper and lower case" {
@@ -311,11 +353,4 @@ test "hex decode accepts upper and lower case" {
     defer testing.allocator.free(out);
     try testing.expectEqualSlices(u8, &.{ 0x0a, 0x1b, 0x2c, 0x3d }, out);
     try testing.expectError(error.InvalidHex, hexDecode(testing.allocator, "abc"));
-}
-
-test "base64 decode rejects invalid text" {
-    try testing.expectError(error.InvalidBase64, base64Decode(testing.allocator, "not base64!!!"));
-    const out = try base64Decode(testing.allocator, "aGVsbG8=");
-    defer testing.allocator.free(out);
-    try testing.expectEqualStrings("hello", out);
 }

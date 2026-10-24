@@ -19,28 +19,31 @@
 
 ## 记录
 
+按连接家族分表，每张表一行一个连接（`Software\PremiumSoft\<家族>\Servers\<连接>`
+子键）：
+
 | 记录类型 | 内容 |
 |---|---|
-| `navicat.connection` | 连接名、连接类型（MySQL / MariaDB / MongoDB / Oracle / PostgreSQL / SQL Server / SQLite）、地址、端口、用户名、**解密后的密码**、缓存路径；SQL Server 另有默认数据库与认证模式，SQLite 另有是否加密、是否保存密码 |
+| `navicat.mysql` / `navicat.mariadb` / `navicat.mongodb` / `navicat.oracle` / `navicat.postgresql` | 连接名、地址、端口、用户名、**解密后的密码**、缓存路径 |
+| `navicat.mssql` | 同上，另有默认数据库与认证模式 |
+| `navicat.sqlite` | 同上，另有默认数据库、是否加密、是否保存密码 |
 
-每个 `Software\PremiumSoft\<家族>\Servers\<连接>` 子键一行。记录的来源由系统
-来源（`.from`）承载——在软件里可直接"定位源文件"跳转到对应配置单元；`hive`
-字段按插件规范（`docs/PLUGIN_SPEC.md` 第二节）作为**身份字段**保留：一次运行
-覆盖多个用户的 NTUSER 配置单元，仅凭连接名无法区分记录。
+记录不携带来源列：记录的来源由系统来源（`.from`）承载——在软件里可直接
+"定位源文件"跳转到对应配置单元（插件规范 `docs/PLUGIN_SPEC.md` 第二节）。
 
 ## 密码解密
 
-按 Navicat 的两种存储方案依次尝试（与 ForensicsTool 的 `decryptNavicat` 一致）：
+Navicat 的两种存储方案都把密文存为**十六进制文本**，按版本依次尝试
+（与 ForensicsTool 的 `decryptNavicat` 一致）：
 
-1. **Navicat 12+**：base64 → AES-128-CBC（固定密钥 `libcckeylibcckey`、IV
+1. **Navicat 12+**：hex → AES-128-CBC（固定密钥 `libcckeylibcckey`、IV
    `libcciv libcciv `、PKCS7 填充）；结果必须是合法 UTF-8 才采纳；
 2. **Navicat 11**：hex → Blowfish（密钥为 `SHA1("3DC5CA39")`，IV 为该密钥下
-   `FF×8` 的 ECB 加密），按原实现的链规则解密（链接值吸收密文），去除尾部
-   NUL 填充。
+   `FF×8` 的 ECB 加密），按原实现的链规则解密（链接值吸收密文），明文不填充、
+   末尾不足一个块的部分按 CFB 流处理。
 
-与原实现的差异（修正）：原工具把 Navicat 12+ 的密文**不经 base64 解码**直接
-喂给 AES（`FromString`），多数字符串长度不是 16 的倍数，解密必然失败。插件按
-Navicat 实际存储格式先 base64 解码，解不开再回落 Navicat 11 方案。
+解不开时密码记为空字符串，不影响其余字段。密码的注册表值：各家族读 `Pwd`，
+SQLite 读 `EncryptionPassword`（加密数据库的密码，与原实现一致）。
 
 ## 构建与验证
 

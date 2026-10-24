@@ -131,22 +131,41 @@ fn analyzeFile(run: *const lc.Run, file: lc.FileRef, connections_total: *u64) lc
 
     const connections = try navicat.collect(run_arena, &hive);
     for (connections) |connection| {
-        try run.record(records.CONNECTION_TYPE, &.{
-            lc.wire.str(path),
-            lc.wire.str(connection.name),
-            lc.wire.str(@tagName(connection.conn_type)),
-            lc.wire.str(connection.host),
-            if (connection.port) |port| lc.wire.uint(port) else .nil,
-            lc.wire.str(connection.username),
-            lc.wire.str(connection.password),
-            lc.wire.str(connection.cache_path),
-            lc.wire.str(connection.database),
-            lc.wire.str(connection.auth_mode),
-            if (connection.encrypted) |flag| .{ .boolean = flag } else .nil,
-            if (connection.saved_password) |flag| .{ .boolean = flag } else .nil,
-        }).from(&file).emit();
+        try emitConnection(run, file, connection);
         connections_total.* += 1;
     }
     run.log(.info, try message(run, "解析 {s} 完成，{d} 个 Navicat 连接", .{ path, connections.len }));
     return null;
+}
+
+/// Emits one connection into the record type of its family: the shared
+/// fields on every type, the family's extras on SQL Server and SQLite.
+fn emitConnection(run: *const lc.Run, file: lc.FileRef, connection: navicat.Connection) lc.Error!void {
+    const base = [_]lc.wire.Value{
+        lc.wire.str(connection.name),
+        lc.wire.str(connection.host),
+        if (connection.port) |port| lc.wire.uint(port) else .nil,
+        lc.wire.str(connection.username),
+        lc.wire.str(connection.password),
+        lc.wire.str(connection.cache_path),
+    };
+    switch (connection.conn_type) {
+        .mssql => try run.record(records.MSSQL_TYPE, &(base ++ [_]lc.wire.Value{
+            lc.wire.str(connection.database),
+            lc.wire.str(connection.auth_mode),
+        })).from(&file).emit(),
+        .sqlite => try run.record(records.SQLITE_TYPE, &(base ++ [_]lc.wire.Value{
+            lc.wire.str(connection.database),
+            if (connection.encrypted) |flag| lc.wire.Value{ .boolean = flag } else .nil,
+            if (connection.saved_password) |flag| lc.wire.Value{ .boolean = flag } else .nil,
+        })).from(&file).emit(),
+        else => try run.record(switch (connection.conn_type) {
+            .mysql => records.MYSQL_TYPE,
+            .mariadb => records.MARIADB_TYPE,
+            .mongodb => records.MONGODB_TYPE,
+            .oracle => records.ORACLE_TYPE,
+            .postgresql => records.POSTGRESQL_TYPE,
+            else => unreachable,
+        }, &base).from(&file).emit(),
+    }
 }
