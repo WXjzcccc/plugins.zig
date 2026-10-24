@@ -17,7 +17,7 @@ id = "navicatevidence"
 name = "Navicat 连接分析"
 scope = "evidence"
 trigger = "manual"
-category = "baseinfo"
+category = "appinfo"
 inputs = ["**/NTUSER.DAT"]
 
 # 文件分析：分析用户在文件浏览器中选中的 NTUSER.DAT。

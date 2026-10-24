@@ -20,7 +20,7 @@ id = "uuremoteevidence"
 name = "UU远程分析"
 scope = "evidence"
 trigger = "manual"
-category = "baseinfo"
+category = "appinfo"
 inputs = [
     "**/Netease/GameViewer/**/*",
     "**/AppData/Local/GameViewer/**/*",

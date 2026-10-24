@@ -17,7 +17,7 @@ id = "mobaevidence"
 name = "MobaXterm 凭据分析"
 scope = "evidence"
 trigger = "manual"
-category = "baseinfo"
+category = "appinfo"
 inputs = ["**/NTUSER.DAT"]
 
 [[analyzer.option]]
