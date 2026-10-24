@@ -149,6 +149,8 @@ pub fn build(b: *std.Build) void {
     // prefix (zig-out unless `--prefix` says otherwise).
     pack_run.addArg("--out");
     pack_run.addArg("../../../../dist");
+    // Empty dist/ first, so it holds exactly the packages of this run.
+    pack_run.addArg("--clean");
     pack_run.addArgs(&.{ "--platform", platformName(target.result) });
     pack_run.addArg("--plugin");
     pack_run.addFileArg(b.path("plugin.toml"));

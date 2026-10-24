@@ -2,7 +2,7 @@
 //!
 //!   zig build                  # every plugin library -> zig-out/lib/
 //!   zig build test             # every plugin's unit tests
-//!   zig build package          # every plugin's .lcpkg -> dist/
+//!   zig build package          # empty dist/, then every plugin's .lcpkg -> dist/
 //!
 //! The per-plugin build recipes live here: one table row per plugin, holding
 //! its directory under `plugins/`, the library name from its plugin.toml and
@@ -93,6 +93,12 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run every plugin's unit tests");
     const package_step = b.step("package", "Package every plugin into dist/");
 
+    // `zig build package` starts from an empty dist/: one clean run every
+    // pack depends on, so the parallel packs never race over deletions.
+    const clean_run = b.addRunArtifact(pack_exe);
+    clean_run.addArgs(&.{ "--clean", "--out", "dist" });
+    clean_run.has_side_effects = true;
+
     for (plugins) |plugin| {
         // The plugin library, ReleaseSafe for the target.
         const module = b.createModule(.{
@@ -166,6 +172,7 @@ pub fn build(b: *std.Build) void {
         pack_run.addArtifactArg(library);
         pack_run.addArg("--schema");
         pack_run.addFileArg(schema_path);
+        pack_run.step.dependOn(&clean_run.step);
         pack_run.has_side_effects = true;
         package_step.dependOn(&pack_run.step);
     }

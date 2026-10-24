@@ -13,6 +13,9 @@
 //!       --schema zig-out/schema.json \
 //!       [--readme README.md] [--locales locales]
 //!
+//! `--clean` empties `--out` before packing (or on its own, with just
+//! `--out`), so the output directory holds exactly the packages of this run.
+//!
 //! It writes two things under `--out`:
 //!
 //!   <id>-<version>-<platform>/          the staged package directory
@@ -35,11 +38,12 @@ const BUILD_INFO = "build.json";
 const CHECKSUMS = "SHA256SUMS.txt";
 
 const usage =
-    \\usage: pack --out <dir> --platform <tag> --plugin <plugin.toml>
-    \\            --library <library> --schema <schema.json>
+    \\usage: pack [--clean] --out <dir> [--platform <tag>] [--plugin <plugin.toml>]
+    \\            [--library <library>] [--schema <schema.json>]
     \\            [--readme <README.md>] [--locales <dir>]
     \\
     \\  --out       directory for the staged package and the .lcpkg archive
+    \\  --clean     empty --out first (or on its own, with just --out)
     \\  --platform  windows-x64 | linux-x64 | linux-arm64 | macos-x64 | macos-arm64
     \\  --plugin    the package manifest
     \\  --library   the built plugin library
@@ -58,10 +62,21 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("pack: {t}\n\n{s}", .{ err, usage });
         std.process.exit(2);
     };
-    pack(alloc, io, arguments) catch |err| {
-        std.debug.print("pack: {s}: {t}\n", .{ arguments.plugin, err });
-        std.process.exit(1);
-    };
+    if (arguments.clean) {
+        cleanOut(alloc, io, arguments.out) catch |err| {
+            std.debug.print("pack: {s}: {t}\n", .{ arguments.out, err });
+            std.process.exit(1);
+        };
+        std.debug.print("pack: cleaned {s}\n", .{arguments.out});
+    }
+    // With --plugin the run packs right after cleaning; without one, --clean
+    // alone just empties the output directory.
+    if (arguments.plugin.len != 0) {
+        pack(alloc, io, arguments) catch |err| {
+            std.debug.print("pack: {s}: {t}\n", .{ arguments.plugin, err });
+            std.process.exit(1);
+        };
+    }
 }
 
 const Arguments = struct {
@@ -77,6 +92,8 @@ const Arguments = struct {
     readme: ?[]const u8 = null,
     /// Optional translations directory.
     locales: ?[]const u8 = null,
+    /// Empty `out` before packing (or on its own, without the pack inputs).
+    clean: bool = false,
 };
 
 fn parseArguments(argv: []const [:0]const u8) !Arguments {
@@ -84,6 +101,11 @@ fn parseArguments(argv: []const [:0]const u8) !Arguments {
     var index: usize = 1;
     while (index < argv.len) : (index += 1) {
         const flag = argv[index];
+        // --clean takes no value: it only empties --out before packing.
+        if (std.mem.eql(u8, flag, "--clean")) {
+            parsed.clean = true;
+            continue;
+        }
         index += 1;
         if (index >= argv.len) return error.MissingValue;
         const value = argv[index];
@@ -105,12 +127,41 @@ fn parseArguments(argv: []const [:0]const u8) !Arguments {
             return error.UnknownOption;
         }
     }
-    if (parsed.platform.len == 0 or parsed.plugin.len == 0 or parsed.library.len == 0 or
-        parsed.schema.len == 0)
-    {
+    // A pack run needs every input; a clean-only run needs none of them.
+    if (parsed.plugin.len != 0) {
+        if (parsed.platform.len == 0 or parsed.library.len == 0 or
+            parsed.schema.len == 0)
+        {
+            return error.MissingOption;
+        }
+    } else if (!parsed.clean) {
         return error.MissingOption;
     }
     return parsed;
+}
+
+/// Empties `out`: deletes every entry inside it and keeps the directory
+/// itself. A quiet no-op when the directory does not exist yet. Names are
+/// collected before deleting, so the iterator never walks a mutating tree.
+fn cleanOut(alloc: std.mem.Allocator, io: std.Io, out: []const u8) !void {
+    const cwd = std.Io.Dir.cwd();
+    var directory = cwd.openDir(io, out, .{ .iterate = true }) catch |err| switch (err) {
+        error.FileNotFound, error.NotDir => return,
+        else => return err,
+    };
+    defer directory.close(io);
+    var names: std.ArrayList([]const u8) = .empty;
+    defer {
+        for (names.items) |name| alloc.free(name);
+        names.deinit(alloc);
+    }
+    var iterator = directory.iterate();
+    while (try iterator.next(io)) |item| {
+        try names.append(alloc, try alloc.dupe(u8, item.name));
+    }
+    for (names.items) |name| {
+        try directory.deleteTree(io, name);
+    }
 }
 
 /// One file of the staged package.

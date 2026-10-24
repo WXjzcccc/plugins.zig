@@ -47,6 +47,8 @@ plugins/
 - `plugin.toml` 的 `version` 与 `build.zig.zon` 的 `.version` 同步修改；安装包名
   `dist/<id>-<version>-<platform>.lcpkg` 随之变化。
 - 发布（`zig build package`）前必须通过 `zig build test`。
+- 打包先清空 `dist/` 再出包（根构建统一清一次，插件目录单独打包自带
+  `--clean`）：`dist/` 只保留本次打包的当前版本，不累积历史版本。
 
 ## 四、其他规范
 
