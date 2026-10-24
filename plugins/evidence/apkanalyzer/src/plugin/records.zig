@@ -3,8 +3,10 @@
 //! Every table answers one question an examiner asks about a package: what the
 //! application is, what it declares (components, permissions, features,
 //! metadata), how it is signed, what it protects itself with, and what the
-//! parser had to report. The first field of every table is the evidence path of
-//! the package, so one run over many APKs keeps its rows distinguishable.
+//! parser had to report. Every table's first field is the package name — the
+//! record identity across a run over many APKs, together with each table's
+//! row name (component/permission/scheme/...). There is no file column: the
+//! record's system source (`.from`) already locates the APK it came from.
 
 const std = @import("std");
 const lc = @import("lovelycarve");
@@ -34,10 +36,11 @@ const SCHEME_CHOICES = [_]lc.schema.Choice{
 };
 
 /// One row per analyzed package: identity, versions, SDK levels, sizes and the
-/// aggregate results of the other tables.
+/// aggregate results of the other tables. The package name is the row's
+/// identity; the file it came from stays reachable through the record's
+/// system source.
 pub const INFO = lc.RecordSchema.new(INFO_TYPE, "APK 信息", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
-    lc.Field.new("package_name", "包名", .text),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("application_label", "应用名称", .text),
     lc.Field.new("version_name", "版本名", .text),
     lc.Field.new("version_code", "版本号", .int),
@@ -64,7 +67,7 @@ pub const INFO = lc.RecordSchema.new(INFO_TYPE, "APK 信息", &.{
 
 /// One row per manifest component.
 pub const COMPONENT = lc.RecordSchema.new(COMPONENT_TYPE, "组件", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("kind", "类型", .enumeration).withChoices(&.{
         .{ .id = "activity", .label = "Activity" },
         .{ .id = "activity_alias", .label = "Activity 别名" },
@@ -86,7 +89,7 @@ pub const COMPONENT = lc.RecordSchema.new(COMPONENT_TYPE, "组件", &.{
 
 /// One row per declared permission, with the catalog's risk classification.
 pub const PERMISSION = lc.RecordSchema.new(PERMISSION_TYPE, "权限", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("name", "权限", .text).asKey(),
     lc.Field.new("risk", "风险", .enumeration).withChoices(&.{
         .{ .id = "normal", .label = "普通" },
@@ -102,7 +105,7 @@ pub const PERMISSION = lc.RecordSchema.new(PERMISSION_TYPE, "权限", &.{
 
 /// One row per uses-feature element.
 pub const FEATURE = lc.RecordSchema.new(FEATURE_TYPE, "特性", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("name", "名称", .text).asKey(),
     lc.Field.new("gl_es_version", "OpenGL ES 版本", .int),
     lc.Field.new("required", "必需", .boolean),
@@ -110,7 +113,7 @@ pub const FEATURE = lc.RecordSchema.new(FEATURE_TYPE, "特性", &.{
 
 /// One row per meta-data element of the application element.
 pub const METADATA = lc.RecordSchema.new(METADATA_TYPE, "元数据", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("name", "名称", .text).asKey(),
     lc.Field.new("value", "值", .text),
     lc.Field.new("kind", "值类型", .text),
@@ -118,7 +121,7 @@ pub const METADATA = lc.RecordSchema.new(METADATA_TYPE, "元数据", &.{
 
 /// One row per signature scheme signer.
 pub const SIGNER = lc.RecordSchema.new(SIGNER_TYPE, "签名方案", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("scheme", "方案", .enumeration).withChoices(&SCHEME_CHOICES),
     lc.Field.new("min_sdk", "最低 SDK", .int),
     lc.Field.new("max_sdk", "最高 SDK", .int),
@@ -129,7 +132,7 @@ pub const SIGNER = lc.RecordSchema.new(SIGNER_TYPE, "签名方案", &.{
 
 /// One row per signing certificate.
 pub const CERTIFICATE = lc.RecordSchema.new(CERTIFICATE_TYPE, "签名证书", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("scheme", "方案", .enumeration).withChoices(&SCHEME_CHOICES),
     lc.Field.new("serial_number", "序列号", .text).asKey(),
     lc.Field.new("sha256", "SHA-256", .hash),
@@ -146,7 +149,7 @@ pub const CERTIFICATE = lc.RecordSchema.new(CERTIFICATE_TYPE, "签名证书", &.
 
 /// One row per packer / framework detection.
 pub const DETECTION = lc.RecordSchema.new(DETECTION_TYPE, "加固与框架", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("category", "类别", .enumeration).withChoices(&.{
         .{ .id = "protection", .label = "加固" },
         .{ .id = "framework", .label = "框架" },
@@ -157,7 +160,7 @@ pub const DETECTION = lc.RecordSchema.new(DETECTION_TYPE, "加固与框架", &.{
 
 /// One row per ZIP entry; emitted only when the run asks for them.
 pub const ENTRY = lc.RecordSchema.new(ENTRY_TYPE, "归档条目", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("name", "条目", .path).asKey(),
     lc.Field.new("method", "压缩方式", .enumeration).withChoices(&.{
         .{ .id = "store", .label = "存储" },
@@ -172,7 +175,7 @@ pub const ENTRY = lc.RecordSchema.new(ENTRY_TYPE, "归档条目", &.{
 
 /// One row per recoverable parser diagnostic.
 pub const DIAGNOSTIC = lc.RecordSchema.new(DIAGNOSTIC_TYPE, "诊断", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("stage", "阶段", .enumeration).withChoices(&.{
         .{ .id = "input", .label = "输入" },
         .{ .id = "archive", .label = "归档" },
@@ -193,7 +196,7 @@ pub const DIAGNOSTIC = lc.RecordSchema.new(DIAGNOSTIC_TYPE, "诊断", &.{
 
 /// One row per extracted application icon.
 pub const ICON = lc.RecordSchema.new(ICON_TYPE, "应用图标", &.{
-    lc.Field.new("file", "文件", .path).asKey(),
+    lc.Field.new("package_name", "包名", .text).asKey(),
     lc.Field.new("entry", "图标条目", .path),
     lc.Field.new("kind", "类型", .enumeration).withChoices(&.{
         .{ .id = "bitmap", .label = "位图" },

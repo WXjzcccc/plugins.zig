@@ -182,12 +182,16 @@ pub fn analyzeFile(
     };
     defer analysis.deinit();
 
+    // Record identity is the package name; a package whose manifest did not
+    // carry one falls back to its file name so rows stay distinguishable.
+    const package_name = analysis.info.package_name orelse std.fs.path.basename(path);
+
     // The record values of this package live in a scratch arena: a run over a
     // whole evidence item would otherwise keep every value of every package
     // until the run ends. Emitted records are already encoded by then.
     var scratch_state = std.heap.ArenaAllocator.init(package_allocator);
     defer scratch_state.deinit();
-    try emitAll(run, file, path, &analysis, settings.items, scratch_state.allocator());
+    try emitAll(run, file, package_name, &analysis, settings.items, scratch_state.allocator());
     return null;
 }
 
@@ -215,7 +219,7 @@ fn message(run: *const lc.Run, comptime format: []const u8, args: anytype) lc.Er
 fn emitAll(
     run: *const lc.Run,
     file: lc.FileRef,
-    path: []const u8,
+    package_name: []const u8,
     analysis: *const model.Analysis,
     items: Items,
     alloc: std.mem.Allocator,
@@ -223,22 +227,20 @@ fn emitAll(
     const info = &analysis.info;
 
     if (items.info) {
-        const values = try conversion.infoValues(alloc, path, analysis);
-        var record = run.record(records.INFO_TYPE, values).from(&file);
-        if (info.package_name) |name| record = record.title(name);
-        try record.emit();
+        const values = try conversion.infoValues(alloc, package_name, analysis);
+        try run.record(records.INFO_TYPE, values).from(&file).emit();
     }
 
     if (items.components) {
         for (info.components) |component| {
-            const values = try conversion.componentValues(alloc, path, component);
+            const values = try conversion.componentValues(alloc, package_name, component);
             try run.record(records.COMPONENT_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.permissions) {
         for (info.permissions) |permission| {
-            const values = try conversion.permissionValues(alloc, path, permission);
+            const values = try conversion.permissionValues(alloc, package_name, permission);
             var record = run.record(records.PERMISSION_TYPE, values).from(&file);
             if (permission.risk == .dangerous) record = record.severity(.high);
             try record.emit();
@@ -247,24 +249,24 @@ fn emitAll(
 
     if (items.features) {
         for (info.features) |feature| {
-            const values = try conversion.featureValues(alloc, path, feature);
+            const values = try conversion.featureValues(alloc, package_name, feature);
             try run.record(records.FEATURE_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.metadata) {
         for (info.application_meta_data) |item| {
-            const values = try conversion.metadataValues(alloc, path, item);
+            const values = try conversion.metadataValues(alloc, package_name, item);
             try run.record(records.METADATA_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.signing) {
         for (info.signing.signers) |signer| {
-            const values = try conversion.signerValues(alloc, path, signer);
+            const values = try conversion.signerValues(alloc, package_name, signer);
             try run.record(records.SIGNER_TYPE, values).from(&file).emit();
             for (signer.certificates) |certificate| {
-                const cert_values = try conversion.certificateValues(alloc, path, signer.scheme, certificate);
+                const cert_values = try conversion.certificateValues(alloc, package_name, signer.scheme, certificate);
                 try run.record(records.CERTIFICATE_TYPE, cert_values).from(&file).emit();
             }
         }
@@ -272,32 +274,32 @@ fn emitAll(
 
     if (items.detections) {
         for (info.protections) |detection| {
-            const values = try conversion.detectionValues(alloc, path, "protection", detection);
+            const values = try conversion.detectionValues(alloc, package_name, "protection", detection);
             try run.record(records.DETECTION_TYPE, values).from(&file).emit();
         }
         for (info.frameworks) |detection| {
-            const values = try conversion.detectionValues(alloc, path, "framework", detection);
+            const values = try conversion.detectionValues(alloc, package_name, "framework", detection);
             try run.record(records.DETECTION_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.entries) {
         for (info.archive.entries) |entry| {
-            const values = try conversion.entryValues(alloc, path, entry);
+            const values = try conversion.entryValues(alloc, package_name, entry);
             try run.record(records.ENTRY_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.icon) {
         if (info.icon_bytes.len != 0 or info.icon_svg.len != 0) {
-            const values = try conversion.iconValues(alloc, path, analysis);
+            const values = try conversion.iconValues(alloc, package_name, analysis);
             try run.record(records.ICON_TYPE, values).from(&file).emit();
         }
     }
 
     if (items.diagnostics) {
         for (analysis.diagnostics) |diagnostic| {
-            const values = try conversion.diagnosticValues(alloc, path, diagnostic);
+            const values = try conversion.diagnosticValues(alloc, package_name, diagnostic);
             try run.record(records.DIAGNOSTIC_TYPE, values).from(&file).emit();
         }
     }

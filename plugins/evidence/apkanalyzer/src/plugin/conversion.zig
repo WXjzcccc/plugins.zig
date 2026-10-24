@@ -63,35 +63,34 @@ fn valueText(value: model.Value) []const u8 {
 /// apk.info: one row per package.
 pub fn infoValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     analysis: *const model.Analysis,
 ) lc.Error![]const lc.wire.Value {
     const info = &analysis.info;
     const values = try alloc.alloc(lc.wire.Value, records.INFO.fields.len);
-    values[0] = text(file);
-    values[1] = text(info.package_name);
-    values[2] = text(valueText(info.application_label));
-    values[3] = text(valueText(info.version_name));
-    values[4] = uint(info.version_code);
-    values[5] = uint32(info.sdk.min);
-    values[6] = uint32(info.sdk.target);
-    values[7] = uint32(info.sdk.compile);
-    values[8] = text(info.launcher_activity);
-    values[9] = boolean(info.debuggable);
-    values[10] = boolean(info.allow_backup);
-    values[11] = lc.wire.uint(info.file_size);
-    values[12] = if (info.sha256) |sha| try digest(alloc, &sha) else .nil;
-    values[13] = lc.wire.uint(info.archive.file_count);
-    values[14] = lc.wire.uint(info.archive.compressed_size);
-    values[15] = lc.wire.uint(info.archive.uncompressed_size);
-    values[16] = try packageNames(alloc, info.resources.packages);
-    values[17] = lc.wire.uint(info.resources.value_count);
-    values[18] = lc.wire.uint(info.resources.resolved_references);
-    values[19] = lc.wire.uint(info.resources.unresolved_references);
-    values[20] = try schemeNames(alloc, info.signing);
-    values[21] = try detectionNames(alloc, info.protections);
-    values[22] = try detectionNames(alloc, info.frameworks);
-    values[23] = .{ .boolean = info.signing.cryptographic_verification_performed };
+    values[0] = text(package_name);
+    values[1] = text(valueText(info.application_label));
+    values[2] = text(valueText(info.version_name));
+    values[3] = uint(info.version_code);
+    values[4] = uint32(info.sdk.min);
+    values[5] = uint32(info.sdk.target);
+    values[6] = uint32(info.sdk.compile);
+    values[7] = text(info.launcher_activity);
+    values[8] = boolean(info.debuggable);
+    values[9] = boolean(info.allow_backup);
+    values[10] = lc.wire.uint(info.file_size);
+    values[11] = if (info.sha256) |sha| try digest(alloc, &sha) else .nil;
+    values[12] = lc.wire.uint(info.archive.file_count);
+    values[13] = lc.wire.uint(info.archive.compressed_size);
+    values[14] = lc.wire.uint(info.archive.uncompressed_size);
+    values[15] = try packageNames(alloc, info.resources.packages);
+    values[16] = lc.wire.uint(info.resources.value_count);
+    values[17] = lc.wire.uint(info.resources.resolved_references);
+    values[18] = lc.wire.uint(info.resources.unresolved_references);
+    values[19] = try schemeNames(alloc, info.signing);
+    values[20] = try detectionNames(alloc, info.protections);
+    values[21] = try detectionNames(alloc, info.frameworks);
+    values[22] = .{ .boolean = info.signing.cryptographic_verification_performed };
     return values;
 }
 
@@ -123,11 +122,11 @@ fn detectionNames(alloc: std.mem.Allocator, detections: []const model.Detection)
 /// apk.component: one row per manifest component.
 pub fn componentValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     component: model.Component,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.COMPONENT.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(@tagName(component.kind));
     values[2] = text(component.name);
     values[3] = text(component.target_activity);
@@ -188,11 +187,11 @@ fn metadataJson(alloc: std.mem.Allocator, items: []const model.MetaData) lc.Erro
 /// apk.permission: one row per declared permission.
 pub fn permissionValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     permission: model.Permission,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.PERMISSION.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(permission.name);
     values[2] = text(riskName(permission.risk));
     values[3] = uint32(permission.max_sdk_version);
@@ -214,11 +213,11 @@ fn riskName(risk: model.PermissionRisk) []const u8 {
 /// apk.feature: one row per uses-feature element.
 pub fn featureValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     feature: model.Feature,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.FEATURE.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(feature.name);
     values[2] = uint32(feature.gl_es_version);
     values[3] = boolean(feature.required);
@@ -228,11 +227,11 @@ pub fn featureValues(
 /// apk.metadata: one row per application meta-data element.
 pub fn metadataValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     item: model.MetaData,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.METADATA.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(item.name);
     values[2] = text(valueText(item.value));
     values[3] = text(@tagName(item.value.kind));
@@ -242,11 +241,11 @@ pub fn metadataValues(
 /// apk.signer: one row per signer of every scheme.
 pub fn signerValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     signer: model.Signer,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.SIGNER.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(@tagName(signer.scheme));
     values[2] = uint32(signer.min_sdk);
     values[3] = uint32(signer.max_sdk);
@@ -273,12 +272,12 @@ fn algorithmNames(
 /// apk.certificate: one row per certificate of every signer.
 pub fn certificateValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     scheme: model.SignatureScheme,
     certificate: model.Certificate,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.CERTIFICATE.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(@tagName(scheme));
     values[2] = text(certificate.serial_number);
     values[3] = try digest(alloc, &certificate.sha256);
@@ -397,12 +396,12 @@ fn fourDigits(raw: []const u8) ?u32 {
 /// apk.detection: one row per packer / framework detection.
 pub fn detectionValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     category: []const u8,
     detection: model.Detection,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.DETECTION.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(category);
     values[2] = text(detection.name);
     values[3] = try list(alloc, detection.evidence);
@@ -412,11 +411,11 @@ pub fn detectionValues(
 /// apk.entry: one row per ZIP entry.
 pub fn entryValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     entry: model.ArchiveEntry,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.ENTRY.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(entry.name);
     values[2] = text(methodName(entry.method));
     values[3] = lc.wire.uint(entry.compressed_size);
@@ -437,11 +436,11 @@ fn methodName(method: u16) []const u8 {
 /// apk.diagnostic: one row per recoverable parser diagnostic.
 pub fn diagnosticValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     diagnostic: model.Diagnostic,
 ) lc.Error![]const lc.wire.Value {
     const values = try alloc.alloc(lc.wire.Value, records.DIAGNOSTIC.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(stageName(diagnostic.stage));
     values[2] = text(severityName(diagnostic.severity));
     values[3] = text(diagnostic.code);
@@ -472,12 +471,12 @@ fn severityName(severity: model.DiagnosticSeverity) []const u8 {
 /// apk.icon: one row for the extracted launcher icon.
 pub fn iconValues(
     alloc: std.mem.Allocator,
-    file: []const u8,
+    package_name: []const u8,
     analysis: *const model.Analysis,
 ) lc.Error![]const lc.wire.Value {
     const info = &analysis.info;
     const values = try alloc.alloc(lc.wire.Value, records.ICON.fields.len);
-    values[0] = text(file);
+    values[0] = text(package_name);
     values[1] = text(info.icon_entry);
     const kind = if (info.icon_bytes.len != 0)
         "bitmap"

@@ -2,7 +2,7 @@
 # live in locales/<locale>.toml under stable keys.
 id = "com.wxjzc.apkanalyzer"
 name = "APK 分析"
-version = "1.0.0"
+version = "1.1.0"
 protocol = 2
 # apkanalyzer.dll / libapkanalyzer.so / libapkanalyzer.dylib, built from
 # build.zig; `library` is the build.zig artifact name without an extension.

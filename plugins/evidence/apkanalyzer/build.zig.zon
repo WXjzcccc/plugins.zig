@@ -1,6 +1,6 @@
 .{
     .name = .apkanalyzer,
-    .version = "1.0.0",
+    .version = "1.1.0",
     // Zig 0.17 requires a fingerprint and derives it from the package name; if
     // you rename the package, take the value the compiler suggests.
     .fingerprint = 0x63d03eb96c02dcae,
