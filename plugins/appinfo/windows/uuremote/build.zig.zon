@@ -1,0 +1,25 @@
+.{
+    .name = .uuremote,
+    .version = "1.0.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0xd4b6610086b4aeb9,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // The shared plugin SDK. A plugin imports one module, `lovelycarve`,
+        // instead of carrying its own copy of the ABI, the wire codec, the
+        // record schemas and the entry point.
+        .lovelycarve = .{ .path = "../../../../zig-sdk" },
+        // Windows registry hive (REGF) reader for the NTUSER.DAT analyzer.
+        .regf_zig = .{ .path = "../../../../libs/regf.zig" },
+        // Windows INI reader for the GameViewer config files.
+        .ini_zig = .{ .path = "../../../../libs/ini.zig" },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "plugin.toml",
+        "README.md",
+    },
+}

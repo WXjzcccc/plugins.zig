@@ -29,6 +29,8 @@ const Plugin = struct {
     library: []const u8,
     /// Whether the plugin's root module imports `regf_zig`.
     regf: bool = false,
+    /// Whether the plugin's root module imports `ini_zig`.
+    ini: bool = false,
     /// Whether the plugin's root module imports `zig_cryptobin`.
     cryptobin: bool = false,
 };
@@ -38,6 +40,7 @@ const plugins = [_]Plugin{
     .{ .name = "winsysteminfo", .dir = "plugins/system/windows/winsysteminfo", .library = "winsysteminfo", .regf = true, .cryptobin = true },
     .{ .name = "navicat", .dir = "plugins/appinfo/windows/navicat", .library = "navicatanalyzer", .regf = true, .cryptobin = true },
     .{ .name = "mobaxterm", .dir = "plugins/appinfo/windows/mobaxterm", .library = "mobaxtermanalyzer", .regf = true, .cryptobin = true },
+    .{ .name = "uuremote", .dir = "plugins/appinfo/windows/uuremote", .library = "uuremote", .regf = true, .ini = true },
 };
 
 pub fn build(b: *std.Build) void {
@@ -66,6 +69,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const host_regf = b.dependency("regf_zig", .{
+        .target = b.graph.host,
+        .optimize = .debug,
+    });
+    const ini = b.dependency("ini_zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const host_ini = b.dependency("ini_zig", .{
         .target = b.graph.host,
         .optimize = .debug,
     });
@@ -111,6 +122,7 @@ pub fn build(b: *std.Build) void {
         });
         module.addImport("lovelycarve", sdk.module("lovelycarve"));
         if (plugin.regf) module.addImport("regf_zig", regf.module("regf_zig"));
+        if (plugin.ini) module.addImport("ini_zig", ini.module("ini_zig"));
         if (plugin.cryptobin) module.addImport("zig_cryptobin", cryptobin.module("zig_cryptobin"));
 
         const library = b.addLibrary(.{
@@ -137,6 +149,7 @@ pub fn build(b: *std.Build) void {
         });
         host_root.addImport("lovelycarve", host_sdk.module("lovelycarve"));
         if (plugin.regf) host_root.addImport("regf_zig", host_regf.module("regf_zig"));
+        if (plugin.ini) host_root.addImport("ini_zig", host_ini.module("ini_zig"));
         if (plugin.cryptobin) host_root.addImport("zig_cryptobin", host_cryptobin.module("zig_cryptobin"));
         const tests = b.addTest(.{
             .name = b.fmt("{s}-test", .{plugin.name}),

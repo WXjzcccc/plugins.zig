@@ -1,0 +1,40 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.uuremote"
+name = "UU远程分析"
+version = "1.0.0"
+protocol = 2
+# uuremote.dll / libuuremote.so / libuuremote.dylib, built from build.zig;
+# `library` is the build.zig artifact name without an extension.
+library = "uuremote"
+memory = "2GiB"
+
+# 检材分析：收集网易UU远程（GameViewer）的配置、日志与注册表痕迹。
+# 覆盖三处数据目录（目录名大小写不敏感，与 glob 规则一致）：
+#   ProgramData/Netease/GameViewer      —— 机器级配置与账号凭据
+#   Users/<u>/AppData/Local/GameViewer  —— 用户级配置与文件传输缓存
+#   <安装目录>/GameViewer/log|config    —— 组件日志（.slog）与按设备配置
+# 以及每个用户的 NTUSER.DAT（安装信息与登录手机号）。
+[[analyzer]]
+id = "uuremoteevidence"
+name = "UU远程分析"
+scope = "evidence"
+trigger = "manual"
+category = "baseinfo"
+inputs = [
+    "**/Netease/GameViewer/**/*",
+    "**/AppData/Local/GameViewer/**/*",
+    "**/GameViewer/log/**/*",
+    "**/GameViewer/config/**/*",
+    "**/NTUSER.DAT",
+]
+
+# 文件分析：分析用户在文件浏览器中选中的 GameViewer 文件
+# （ini/json/slog/conf/data），NTUSER.DAT 一并支持。
+[[analyzer]]
+id = "uuremotefile"
+name = "UU远程分析"
+scope = "files"
+trigger = "manual"
+category = "baseinfo"
+extensions = ["ini", "json", "slog", "conf", "dat"]

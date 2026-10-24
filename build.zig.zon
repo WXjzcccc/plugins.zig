@@ -10,6 +10,8 @@
         .lovelycarve = .{ .path = "zig-sdk" },
         // Windows registry hive (REGF) reader.
         .regf_zig = .{ .path = "libs/regf.zig" },
+        // Windows INI reader (GameViewer configs and friends).
+        .ini_zig = .{ .path = "libs/ini.zig" },
         // Ciphers and hashes (RC4, DES, AES modes, Blowfish, SHA-2).
         .zig_cryptobin = .{ .path = "libs/zig-cryptobin" },
     },
