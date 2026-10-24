@@ -1,0 +1,15 @@
+.{
+    .name = .axml_zig,
+    .version = "0.1.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0xe3adb1aff72d554b,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+    },
+}

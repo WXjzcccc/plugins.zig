@@ -43,14 +43,12 @@ test {
     _ = @import("core/analysis/engine.zig");
     _ = @import("core/analysis/icon.zig");
     _ = @import("core/analysis/signing_info.zig");
-    _ = @import("core/android/axml/document.zig");
-    _ = @import("core/android/chunk.zig");
     _ = @import("core/android/manifest/parser.zig");
     _ = @import("core/android/resources/config.zig");
     _ = @import("core/android/resources/resolver.zig");
     _ = @import("core/android/resources/table.zig");
-    _ = @import("core/android/string_pool.zig");
-    _ = @import("core/android/typed_value.zig");
+    // The shared AXML library carries its own tests.
+    _ = @import("axml_zig");
     _ = @import("core/limits.zig");
     _ = @import("core/model.zig");
     _ = @import("core/signing/algorithms.zig");
@@ -63,7 +61,6 @@ test {
     _ = @import("plugin/conversion.zig");
     _ = @import("plugin/run.zig");
     _ = @import("plugin/records.zig");
-    _ = @import("utils/io/cursor.zig");
     _ = @import("utils/logging.zig");
     _ = @import("utils/zip/archive.zig");
 }

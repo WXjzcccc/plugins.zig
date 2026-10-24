@@ -1,6 +1,6 @@
 const std = @import("std");
-const axml = @import("../axml/document.zig");
-const typed_value = @import("../typed_value.zig");
+const axml = @import("axml_zig");
+const typed_value = axml.typed_value;
 const model = @import("../../model.zig");
 const logging = @import("../../../utils/logging.zig");
 

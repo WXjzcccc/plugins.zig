@@ -1,9 +1,10 @@
 const std = @import("std");
-const chunk = @import("../chunk.zig");
-const string_pool = @import("../string_pool.zig");
-const typed_value = @import("../typed_value.zig");
+const axml = @import("axml_zig");
+const chunk = axml.chunk;
+const string_pool = axml.string_pool;
+const typed_value = axml.typed_value;
 const config_mod = @import("config.zig");
-const cursor_mod = @import("../../../utils/io/cursor.zig");
+const cursor_mod = axml.cursor;
 const logging = @import("../../../utils/logging.zig");
 
 const Allocator = std.mem.Allocator;

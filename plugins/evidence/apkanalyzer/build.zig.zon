@@ -10,6 +10,8 @@
         // instead of carrying its own copy of the ABI, the wire codec, the
         // record schemas and the entry point.
         .lovelycarve = .{ .path = "../../../zig-sdk" },
+        // The shared AXML reader, extracted from this plugin's parser core.
+        .axml_zig = .{ .path = "../../../libs/axml.zig" },
     },
     .paths = .{
         "build.zig",

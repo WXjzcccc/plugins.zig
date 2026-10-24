@@ -1,9 +1,9 @@
 const std = @import("std");
-const chunk = @import("../chunk.zig");
-const string_pool = @import("../string_pool.zig");
-const typed_value = @import("../typed_value.zig");
-const cursor_mod = @import("../../../utils/io/cursor.zig");
-const logging = @import("../../../utils/logging.zig");
+const chunk = @import("chunk.zig");
+const string_pool = @import("string_pool.zig");
+const typed_value = @import("typed_value.zig");
+const cursor_mod = @import("cursor.zig");
+const logging = @import("logging.zig");
 
 const Cursor = cursor_mod.Cursor;
 
@@ -94,15 +94,15 @@ pub const Document = struct {
     events: []const Event,
 
     pub fn parse(backing_allocator: std.mem.Allocator, data: []const u8) ParseError!Document {
-        logging.info(.apk_android_axml, @src(), "AXML document parsing started bytes={d}", .{data.len});
+        logging.info(.axml_document, @src(), "AXML document parsing started bytes={d}", .{data.len});
         const document = parseImpl(backing_allocator, data) catch |err| {
-            logging.err(.apk_android_axml, @src(), "AXML document parsing failed bytes={d} error={s}", .{
+            logging.err(.axml_document, @src(), "AXML document parsing failed bytes={d} error={s}", .{
                 data.len,
                 @errorName(err),
             });
             return err;
         };
-        logging.info(.apk_android_axml, @src(), "AXML document parsed strings={d} resource_ids={d} events={d}", .{
+        logging.info(.axml_document, @src(), "AXML document parsed strings={d} resource_ids={d} events={d}", .{
             document.string_pool.strings.len,
             document.resource_map.len,
             document.events.len,
@@ -131,7 +131,7 @@ pub const Document = struct {
                 chunk.Type.xml_resource_map => {
                     if (resource_map != null) return error.DuplicateResourceMap;
                     resource_map = try parseResourceMap(allocator, child);
-                    logging.debug(.apk_android_axml, @src(), "AXML resource map decoded resource_ids={d}", .{resource_map.?.len});
+                    logging.debug(.axml_document, @src(), "AXML resource map decoded resource_ids={d}", .{resource_map.?.len});
                 },
                 else => {},
             }
@@ -256,7 +256,7 @@ fn parseStartElement(
         const attribute_name_index = try attribute_cursor.readInt(u32, .little);
         const raw_value_index = try attribute_cursor.readInt(u32, .little);
         const value = typed_value.read(&attribute_cursor) catch |err| {
-            logging.err(.apk_android_axml, @src(), "AXML attribute value parsing failed element={s} attribute_index={d} error={s}", .{
+            logging.err(.axml_document, @src(), "AXML attribute value parsing failed element={s} attribute_index={d} error={s}", .{
                 pool.get(name_index) catch "<invalid>",
                 index,
                 @errorName(err),
@@ -317,7 +317,7 @@ fn parseCdata(source: chunk.Chunk, pool: string_pool.StringPool) ParseError!Cdat
     const text_index = extension.readInt(u32, .little) catch return error.InvalidNodeExtension;
     const value: typed_value.Value = typed_value.read(&extension) catch |err| switch (err) {
         error.InvalidValueSize, error.NonZeroReservedByte => blk: {
-            logging.warn(.apk_android_axml, @src(), "AXML CDATA value ignored offset={d} text_index={d} error={s}", .{
+            logging.warn(.axml_document, @src(), "AXML CDATA value ignored offset={d} text_index={d} error={s}", .{
                 source.offset,
                 text_index,
                 @errorName(err),

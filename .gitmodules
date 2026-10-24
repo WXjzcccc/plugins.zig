@@ -1,3 +1,6 @@
 [submodule "libs/zig-cryptobin"]
 	path = libs/zig-cryptobin
 	url = https://github.com/WXjzcccc/zig-cryptobin
+[submodule "libs/zqlite.zig"]
+	path = libs/zqlite.zig
+	url = https://github.com/karlseguin/zqlite.zig

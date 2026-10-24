@@ -181,6 +181,7 @@ def serve(host_in, host_out, analyzer, packages, options):
     progress = []
     warnings = []
     contents = {}
+    leases = {}
     inputs = []
     for index, (path, data) in enumerate(packages, start=1):
         file_id = "file-{}".format(index)
@@ -272,7 +273,24 @@ def serve(host_in, host_out, analyzer, packages, options):
                 data = contents.get(params.get("file_id"), b"")
                 reply = {"type": "response", "v": 2, "id": rid,
                          "result": data[offset:offset + length]}
+            elif method == "file.materialize":
+                # A real host copies the file to a path the plugin can open
+                # itself; the driver writes a temp copy and leases it.
+                data = contents.get(params.get("file_id"), b"")
+                lease = "lease-{}".format(len(leases))
+                handle = tempfile.NamedTemporaryFile(prefix="drive-lease-", suffix=".bin", delete=False)
+                handle.write(data)
+                handle.close()
+                leases[lease] = handle.name
+                reply = {"type": "response", "v": 2, "id": rid,
+                         "result": {"path": handle.name, "size": len(data), "lease_id": lease}}
             elif method == "file.release":
+                lease_path = leases.pop(params.get("lease_id"), None)
+                if lease_path and os.path.exists(lease_path):
+                    try:
+                        os.unlink(lease_path)
+                    except OSError:
+                        pass
                 reply = {"type": "response", "v": 2, "id": rid, "result": None}
             else:
                 reply = {"type": "response", "v": 2, "id": rid,

@@ -12,8 +12,13 @@
         .regf_zig = .{ .path = "libs/regf.zig" },
         // Windows INI reader for application config files.
         .ini_zig = .{ .path = "libs/ini.zig" },
+        // Android binary XML (AXML) reader, extracted from apkanalyzer.
+        .axml_zig = .{ .path = "libs/axml.zig" },
         // Ciphers and hashes (RC4, DES, AES modes, Blowfish, SHA-2).
         .zig_cryptobin = .{ .path = "libs/zig-cryptobin" },
+        // SQLite wrapper (bundles the amalgamation) for read-only evidence
+        // databases; introduced for the Android system analyzer.
+        .zqlite = .{ .path = "libs/zqlite.zig" },
     },
     .paths = .{
         "build.zig",

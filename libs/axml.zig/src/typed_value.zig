@@ -1,5 +1,5 @@
 const std = @import("std");
-const cursor_mod = @import("../../utils/io/cursor.zig");
+const cursor_mod = @import("cursor.zig");
 
 pub const Cursor = cursor_mod.Cursor;
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const chunk = @import("chunk.zig");
-const cursor_mod = @import("../../utils/io/cursor.zig");
-const logging = @import("../../utils/logging.zig");
+const cursor_mod = @import("cursor.zig");
+const logging = @import("logging.zig");
 
 const Cursor = cursor_mod.Cursor;
 
@@ -58,18 +58,18 @@ pub const StringPool = struct {
     }
 
     pub fn parse(allocator: std.mem.Allocator, source: chunk.Chunk) Error!StringPool {
-        logging.debug(.apk_android_strings, @src(), "string pool parsing started offset={d} bytes={d}", .{
+        logging.debug(.axml_strings, @src(), "string pool parsing started offset={d} bytes={d}", .{
             source.offset,
             source.bytes.len,
         });
         const pool = parseImpl(allocator, source) catch |err| {
-            logging.err(.apk_android_strings, @src(), "string pool parsing failed offset={d} error={s}", .{
+            logging.err(.axml_strings, @src(), "string pool parsing failed offset={d} error={s}", .{
                 source.offset,
                 @errorName(err),
             });
             return err;
         };
-        logging.debug(.apk_android_strings, @src(), "string pool parsed strings={d} styles={d} encoding={s}", .{
+        logging.debug(.axml_strings, @src(), "string pool parsed strings={d} styles={d} encoding={s}", .{
             pool.strings.len,
             pool.style_offsets.len,
             if (pool.isUtf8()) "utf8" else "utf16",
@@ -136,7 +136,7 @@ pub const StringPool = struct {
         }
 
         if (normalized_utf8_sequences != 0) {
-            logging.warn(.apk_android_strings, @src(), "string pool normalized Android modified UTF-8 sequences offset={d} count={d}", .{
+            logging.warn(.axml_strings, @src(), "string pool normalized Android modified UTF-8 sequences offset={d} count={d}", .{
                 source.offset,
                 normalized_utf8_sequences,
             });

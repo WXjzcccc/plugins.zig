@@ -1,5 +1,5 @@
 const std = @import("std");
-const Cursor = @import("../../../utils/io/cursor.zig").Cursor;
+const Cursor = @import("axml_zig").cursor.Cursor;
 
 pub const minimum_size: u32 = 28;
 

@@ -18,14 +18,29 @@ pub const MAX_MESSAGE_BYTES: usize = 1024;
 
 threadlocal var context: ?lc.Context = null;
 
+/// The shared AXML library's own diagnostics go through the same SDK log:
+/// its sink is bound alongside this module's context.
+const axml_logging = @import("axml_zig").logging;
+
+fn forwardAxml(level: axml_logging.Level, message: []const u8) void {
+    switch (level) {
+        .debug => log(.debug, .axml, null, "{s}", .{message}),
+        .info => log(.info, .axml, null, "{s}", .{message}),
+        .warn => log(.warn, .axml, null, "{s}", .{message}),
+        .err => log(.err, .axml, null, "{s}", .{message}),
+    }
+}
+
 /// Binds the log of this thread to `ctx` (the run's context).
 pub fn bind(ctx: lc.Context) void {
     context = ctx;
+    axml_logging.bind(forwardAxml);
 }
 
 /// Drops the binding of this thread.
 pub fn unbind() void {
     context = null;
+    axml_logging.unbind();
 }
 
 /// Whether this thread has a log to write to.

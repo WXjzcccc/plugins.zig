@@ -1,0 +1,26 @@
+.{
+    .name = .androidsysteminfo,
+    .version = "1.1.0",
+    // Zig 0.17 requires a fingerprint and derives it from the package name; if
+    // you rename the package, take the value the compiler suggests.
+    .fingerprint = 0x338917fcc5f3b0d7,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        // The shared plugin SDK. A plugin imports one module, `lovelycarve`,
+        // instead of carrying its own copy of the ABI, the wire codec, the
+        // record schemas and the entry point.
+        .lovelycarve = .{ .path = "../../../../zig-sdk" },
+        // INI reader for the Bluetooth bt_config store.
+        .ini_zig = .{ .path = "../../../../libs/ini.zig" },
+        // SQLite (read-only) for accounts_ce.db and gnssCollectData.db;
+        // bundles and statically links the amalgamation.
+        .zqlite = .{ .path = "../../../../libs/zqlite.zig" },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "plugin.toml",
+        "README.md",
+    },
+}

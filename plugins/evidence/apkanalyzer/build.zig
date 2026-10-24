@@ -31,6 +31,14 @@ pub fn build(b: *std.Build) void {
         .target = b.graph.host,
         .optimize = .debug,
     });
+    const axml = b.dependency("axml_zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const host_axml = b.dependency("axml_zig", .{
+        .target = b.graph.host,
+        .optimize = .debug,
+    });
 
     // ------------------------------------------------------------- library
 
@@ -43,6 +51,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     module.addImport("lovelycarve", sdk.module("lovelycarve"));
+    module.addImport("axml_zig", axml.module("axml_zig"));
 
     const library = b.addLibrary(.{
         .name = "apkanalyzer",
@@ -69,6 +78,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     host_root.addImport("lovelycarve", host_sdk.module("lovelycarve"));
+    host_root.addImport("axml_zig", host_axml.module("axml_zig"));
     const tests = b.addTest(.{
         .name = "apkanalyzer-test",
         .root_module = host_root,
@@ -88,6 +98,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     describe_module.addImport("lovelycarve", host_sdk.module("lovelycarve"));
+    describe_module.addImport("axml_zig", host_axml.module("axml_zig"));
     describe_module.addImport("plugin", host_root);
     const describe_exe = b.addExecutable(.{
         .name = "describe",

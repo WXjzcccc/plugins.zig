@@ -1,0 +1,127 @@
+# Package manifest (LPP v2). Labels are the Chinese defaults; translations
+# would live in locales/<locale>.toml under stable keys.
+id = "com.wxjzc.androidsysteminfo"
+name = "Android 系统信息"
+version = "1.1.0"
+protocol = 2
+# androidsysteminfo.dll / libandroidsysteminfo.so / libandroidsysteminfo.dylib,
+# built from build.zig; `library` is the build.zig artifact name without an
+# extension.
+library = "androidsysteminfo"
+memory = "2GiB"
+
+# accounts_ce.db 等数据库以只读临时副本打开，需要落盘许可。
+permissions = ["file_materialize"]
+
+# 检材分析：Android data 分区（检材内的 data/ 目录树）。四个分析器共享一个
+# 解析核心，各自只取自己需要的输入。scope 为 evidence：宿主尚不识别 Android
+# 为系统族，按检材级路径匹配输入。
+[[analyzer]]
+id = "baseinfo"
+name = "系统信息"
+scope = "evidence"
+trigger = "manual"
+category = "baseinfo"
+inputs = [
+  "data/system/dropbox/SYSTEM_BOOT@*.txt",
+  "data/system/last-header.txt",
+  "data/system/packages.xml",
+  "data/system/users/*.xml",
+]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "device", label = "系统属性" },
+  { id = "boot", label = "开机记录" },
+  { id = "users", label = "设备用户" },
+]
+
+[[analyzer]]
+id = "syslog"
+name = "系统日志"
+scope = "evidence"
+trigger = "manual"
+category = "syslog"
+inputs = [
+  "data/local/bootlog/bootlog.txt",
+  "data/system/dropbox/*",
+  "data/anr/*",
+]
+
+[[analyzer.option]]
+id = "buffers"
+type = "multi"
+label = "日志缓冲区"
+choices = [
+  { id = "main", label = "main" },
+  { id = "system", label = "system" },
+  { id = "crash", label = "crash" },
+  { id = "radio", label = "radio" },
+  { id = "events", label = "events" },
+]
+
+[[analyzer.option]]
+id = "levels"
+type = "multi"
+label = "日志级别"
+choices = [
+  { id = "v", label = "V (Verbose)" },
+  { id = "d", label = "D (Debug)" },
+  { id = "i", label = "I (Info)" },
+  { id = "w", label = "W (Warn)" },
+  { id = "e", label = "E (Error)" },
+  { id = "f", label = "F (Fatal)" },
+]
+
+[[analyzer]]
+id = "applist"
+name = "应用列表"
+scope = "evidence"
+trigger = "manual"
+category = "appinfo"
+inputs = [
+  "data/system/packages.xml",
+  "data/system/packages.list",
+  "data/misc_de/*/apexdata/com.android.permission/runtime-permissions.xml",
+]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "list", label = "应用列表" },
+  { id = "permissions", label = "授权权限" },
+]
+
+[[analyzer]]
+id = "netrecords"
+name = "网络与其他记录"
+scope = "evidence"
+trigger = "manual"
+category = "netrecord"
+inputs = [
+  "data/misc/apexdata/com.android.wifi/WifiConfigStore.xml",
+  "data/misc/apexdata/com.android.wifi/WifiConfigStoreSoftAp.xml",
+  "data/misc/bluedroid/bt_config.conf",
+  "data/misc/bluedroid/bt_config.bak",
+  "data/misc/adb/adb_keys",
+  "data/misc/adb/adb_temp_keys.xml",
+  "data/system_ce/*/accounts_ce.db",
+  "data/system/gnssCollectData.db",
+]
+
+[[analyzer.option]]
+id = "items"
+type = "multi"
+label = "子项"
+choices = [
+  { id = "wifi", label = "Wi-Fi" },
+  { id = "bluetooth", label = "蓝牙" },
+  { id = "adb", label = "ADB 授权" },
+  { id = "accounts", label = "系统账号" },
+  { id = "gnss", label = "GNSS 记录" },
+]
