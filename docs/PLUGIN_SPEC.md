@@ -57,7 +57,9 @@ plugins/
 3. **清单一致性**：`plugin.toml` 的 `id` / `library` / `[[analyzer]]` 必须与代码中的常量一致（握手时宿主逐项校验，不一致直接拒载）；multi 选项留空的语义（全选还是全不选）必须在 README 写明。
 4. **健壮性**：单个输入或单条数据失败用 `run.warn*` 上报并继续，不让整次运行失败；坏文件是告警不是错误。长循环轮询 `run.checkCancelled()`、上报 `run.progress`，结束时 `run.setSummary` 一句话概括运行结果。
 5. **内存**：大文件逐个处理，读入缓冲用 libc 分配器、解析值用每文件 arena，读入上限写成具名常量并在 README 说明（模式见 winsysteminfo / apkanalyzer 的 `analyze.zig`）。
-6. **测试与验证**：`zig build test` 必须覆盖解析核心的单元测试与 `lc.testing` 假宿主的端到端测试；真实样例用 `zig build probe`（或根 `scripts/drive.py` + 真宿主 `lc-plugin-host`）验证过才交付。
+6. **测试与验证**：`zig build test` 必须覆盖解析核心的单元测试与 `lc.testing` 假宿主的端到端测试；真实样例用 `zig build probe`（或根 `scripts/drive.py` + 真宿主 `lc-plugin-host`）验证过才交付。整次运行的输出可用
+   `lc.testing.Stub.snapshot` 渲染为稳定文本做对照：summary、告警、按字段 id 排序的非空值与来源，
+   不含进度、日志与 node_id；传入插件自身的 `records` 与 `run.start` 回复里的 `summary`。
 7. **文档**：每个插件一份 README——分析器表、记录表、选项表、构建与验证命令、与参考实现（如有）的差异；协议机制链接到 PLUGIN_PROTOCOL.md，不重复抄写。
 8. **依赖**：只用 `zig-sdk` 与 `libs/` 下的共享库；新增共享库进 `libs/`（优先 git submodule 引入）并在根 `build.zig.zon` 登记，同时更新根 `build.zig` 的插件表开关。
 9. **文案**：记录标签、运行摘要、告警消息以简体中文为默认；代码与注释使用英文。

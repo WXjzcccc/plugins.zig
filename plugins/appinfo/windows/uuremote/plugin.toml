@@ -3,6 +3,9 @@
 id = "com.wxjzc.uuremote"
 name = "UU远程分析"
 version = "1.0.0"
+description = "UU远程分析：网易UU远程的配置、账号凭据、日志与注册表痕迹"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # uuremote.dll / libuuremote.so / libuuremote.dylib, built from build.zig;
 # `library` is the build.zig artifact name without an extension.

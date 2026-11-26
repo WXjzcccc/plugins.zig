@@ -3,6 +3,9 @@
 id = "com.wxjzc.apkanalyzer"
 name = "APK 分析"
 version = "1.1.0"
+description = "APK 静态分析：应用信息、组件、权限、签名、加固检测与应用图标"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # apkanalyzer.dll / libapkanalyzer.so / libapkanalyzer.dylib, built from
 # build.zig; `library` is the build.zig artifact name without an extension.

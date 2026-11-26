@@ -522,6 +522,9 @@ zig build package -Doptimize=ReleaseSafe
 id = "com.example.myplugin"
 name = "MyPlugin"
 version = "0.2.0"
+description = "一行说明：插件做什么"   # 缺省无；locales 的 plugin.description 翻译
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 library = "myplugin"          # 对应 build.zig 里的 .name
 memory = "512MiB"
@@ -580,6 +583,24 @@ test "run.start emits one record" {
 `Reply` 三选一：`.value`（成功，带载荷）、`.empty`（成功，无载荷）、`.fault`（失败，
 `{code, message}`）。`call` 返回 `CallResult{ status, payload, fault }` 并保留原始状态码；
 `callOk` 把非 `STATUS_OK` 变成 `lc.Error`。
+
+整次运行的输出用 `Stub.snapshot` 渲染成稳定文本，适合逐字对照：summary、告警、每条记录
+（类型、标题、严重级、按字段 id 排序的非空值与来源），不含进度、日志与 `node_id`。
+
+```zig
+test "整次运行与快照一致" {
+    // ... stub / table 同上 ...
+    const reply = try lc.testing.callOk(std.testing.allocator, &table, 2, "run.start", params);
+    const text = try stub.snapshot(std.testing.allocator, .{
+        .schemas = plugin.records,
+        .summary = reply.?.getString("summary"),
+    });
+    try std.testing.expectEqualStrings(expected, text);
+}
+```
+
+记录类型不在 `.schemas` 里时 `snapshot` 报 `UNKNOWN_RECORD_TYPE`，所以传入插件自己注册的
+`records` 即可；`profile.fact` 用 `plugin.allRecords(alloc)`。
 
 两个坑：
 

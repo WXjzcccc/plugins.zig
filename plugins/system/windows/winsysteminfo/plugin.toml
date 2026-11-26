@@ -3,6 +3,9 @@
 id = "com.wxjzc.winsysteminfo"
 name = "Windows 系统信息"
 version = "1.0.2"
+description = "Windows 系统信息：系统版本、网卡、用户与默认浏览器"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # winreganalyzer.dll / libwinreganalyzer.so / libwinreganalyzer.dylib, built
 # from build.zig; `library` is the build.zig artifact name without an extension.

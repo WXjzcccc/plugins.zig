@@ -3,6 +3,9 @@
 id = "com.wxjzc.mobaxterm"
 name = "MobaXterm 凭据分析"
 version = "1.0.2"
+description = "MobaXterm 凭据分析：从 NTUSER.DAT 提取保存的会话与加密密码"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # mobaxtermanalyzer.dll / libmobaxtermanalyzer.so / libmobaxtermanalyzer.dylib,
 # built from build.zig; `library` is the build.zig artifact name without an

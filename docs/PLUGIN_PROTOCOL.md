@@ -48,6 +48,9 @@ LovelyCarve 启动时扫描以下根目录，每个根目录本身可以是插�
 id = "org.example.demo"
 name = "示例插件"
 version = "1.2.0"
+description = "一行说明：插件做什么"  # 缺省无；locales 的 plugin.description 翻译
+publisher = "WXjzcccc"            # 发布者，一行，最多 128 个字符
+license = "MIT"                   # 许可证的 SPDX 表达式
 protocol = 2
 library = "demo"          # demo.dll / libdemo.so / libdemo.dylib
 memory = "1GiB"           # 插件进程内存上限，缺省 2GiB
@@ -86,6 +89,8 @@ priority = 100
 | 字段 | 说明 |
 | --- | --- |
 | `id` | 1–128 个 ASCII 字母、数字、`.`、`-`、`_` |
+| `description` | 一行说明，最多 1024 个字符，不能为空或含控制字符；插件检查页与插件列表显示它 |
+| `publisher` / `license` | 发布者与许可证（SPDX 表达式），各为一行、最多 128 个字符 |
 | `protocol` | 必须为 `2` |
 | `library` | 包目录内的相对路径；没有库扩展名时按平台补前后缀 |
 | `memory` | `64MiB`–`64GiB`，缺省 `2GiB`，Windows 以 Job Object 强制 |

@@ -12,7 +12,7 @@
 | `build.zig` / `build.zig.zon` | 产出动态库、测试、`schema` 与 `package` 步骤 |
 | `scripts/pack.zig` | 暂存包目录、写 SHA-256、打成 STORED ZIP（无外部工具） |
 | `scripts/drive.py` | 用 LPP v2 帧驱动真宿主 `lc-plugin-host`，端到端跑一遍 |
-| `plugin.toml` | 清单：身份、库名、内存上限、分析器 |
+| `plugin.toml` | 清单：身份、库名、内存上限、发布者与许可证、分析器 |
 
 ## 快速开始
 
@@ -124,6 +124,9 @@ try run.record(RELEASE_TYPE, &.{
 id = "com.wxjzc.zigtemplate"     # 与 PLUGIN_ID 一致
 name = "模板"
 version = "0.2.0"
+description = "模板插件：从 Linux 的 os-release 提取系统标识，作为新插件的起点"  # 缺省无；locales 的 plugin.description 翻译
+publisher = "WXjzcccc"            # 发布者
+license = "MIT"                   # 许可证的 SPDX 表达式
 protocol = 2                      # 只支持 LPP v2
 library = "zigtemplate"           # 无扩展名时按平台补 zigtemplate.dll / libzigtemplate.so
 memory = "512MiB"                 # 插件进程内存上限，缺省 2GiB

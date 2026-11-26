@@ -395,6 +395,40 @@ test "run.start turns os-release into one record per reported field" {
     try testing.expect(std.mem.indexOf(u8, reply.getString("summary").?, "6 个字段") != null);
 }
 
+test "the whole run reads back as stable snapshot text" {
+    MockHost.contents =
+        \\NAME=Test
+        \\ID=test
+        \\
+    ;
+    defer MockHost.contents = "";
+
+    var fixture: Fixture = undefined;
+    try fixture.init(testing.allocator);
+    defer fixture.deinit();
+
+    const reply = (try fixture.start(ANALYZER_ID)).?;
+    const text = try fixture.stub.snapshot(fixture.arena(), .{
+        .schemas = plugin.records,
+        .summary = reply.getString("summary"),
+    });
+
+    try testing.expectEqualStrings(
+        \\summary: "etc/os-release: 2 个字段"
+        \\zigtemplate.release "NAME"
+        \\  field_value = "Test"
+        \\  key = "NAME"
+        \\  source = "etc/os-release"
+        \\  from "part:0/etc/os-release"
+        \\zigtemplate.release "ID"
+        \\  field_value = "test"
+        \\  key = "ID"
+        \\  source = "etc/os-release"
+        \\  from "part:0/etc/os-release"
+        \\
+    , text);
+}
+
 test "a view without os-release emits nothing and says so" {
     MockHost.contents = "";
     var fixture: Fixture = undefined;

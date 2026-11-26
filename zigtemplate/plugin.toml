@@ -3,6 +3,9 @@
 id = "com.wxjzc.zigtemplate"
 name = "模板"
 version = "0.2.0"
+description = "模板插件：从 Linux 的 os-release 提取系统标识，作为新插件的起点"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # zigtemplate.dll / libzigtemplate.so / libzigtemplate.dylib — the library
 # build.zig produces. A name without a library extension resolves to the

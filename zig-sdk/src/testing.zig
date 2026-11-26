@@ -40,7 +40,8 @@
 //! `run.progress`, `run.warn` and `file.release` — and records them, so a
 //! handler only deals with the evidence side (`view.*`, `file.read`,
 //! `file.readv`, `file.materialize`, `source.*`). A `run.start` therefore
-//! runs end to end: the emitted batches land in [`Stub.emits`].
+//! runs end to end: the emitted batches land in [`Stub.emits`], and
+//! [`Stub.snapshot`] renders everything a run reported as stable text.
 
 const std = @import("std");
 
@@ -100,6 +101,188 @@ pub const EmitBatch = struct {
     /// The `{type, values, title?, severity?, sources?}` maps of the batch.
     records: []const wire.Value,
 };
+
+/// How [`Stub.snapshot`] renders a recorded run.
+pub const SnapshotOptions = struct {
+    /// The plugin's record schemas: a record's values are named by field id,
+    /// and a record without an explicit title gets its schema's rendered one.
+    schemas: []const schema.RecordSchema,
+    /// The `run.start` reply's `summary`, when the run reported one.
+    summary: ?[]const u8 = null,
+};
+
+/// One record of a snapshot: its type and title, then the non-nil values by
+/// field id (alphabetical, like the Rust SDK's `BTreeMap`), then its sources.
+fn appendRecord(
+    out: *std.ArrayList(u8),
+    alloc: std.mem.Allocator,
+    schemas: []const schema.RecordSchema,
+    record: wire.Value,
+) sdk.Error!void {
+    const record_type = record.getString("type") orelse "";
+    const record_schema = findSchema(schemas, record_type) orelse return sdk.failf(
+        alloc,
+        "UNKNOWN_RECORD_TYPE",
+        "record type {s} is not registered with the snapshot's schemas",
+        .{record_type},
+    );
+    const values: []const wire.Value = switch (record.get("values") orelse wire.Value.nil) {
+        .array => |items| items,
+        else => &[_]wire.Value{},
+    };
+
+    const title = record.getString("title") orelse try record_schema.renderTitle(alloc, values);
+    try out.appendSlice(alloc, record_type);
+    try out.append(alloc, ' ');
+    try appendQuoted(out, alloc, title);
+    if (record.getString("severity")) |severity| {
+        try out.appendSlice(alloc, " [");
+        try out.appendSlice(alloc, severity);
+        try out.append(alloc, ']');
+    }
+    try out.append(alloc, '\n');
+
+    // Field ids sort, so the text does not depend on schema field order.
+    const Entry = struct { id: []const u8, index: usize };
+    const order = try alloc.alloc(Entry, record_schema.fields.len);
+    defer alloc.free(order);
+    for (record_schema.fields, 0..) |field, index| order[index] = .{ .id = field.id, .index = index };
+    std.mem.sort(Entry, order, {}, struct {
+        fn lessThan(_: void, left: Entry, right: Entry) bool {
+            return std.mem.order(u8, left.id, right.id) == .lt;
+        }
+    }.lessThan);
+    for (order) |field| {
+        const field_value = if (field.index < values.len) values[field.index] else wire.Value.nil;
+        if (isNil(field_value)) continue;
+        try out.appendSlice(alloc, "  ");
+        try out.appendSlice(alloc, field.id);
+        try out.appendSlice(alloc, " = ");
+        try appendValue(out, alloc, field_value);
+        try out.append(alloc, '\n');
+    }
+
+    if (record.get("sources")) |sources| switch (sources) {
+        .array => |items| for (items) |source| try appendSource(out, alloc, source),
+        else => {},
+    };
+}
+
+/// One source line: `  from "root/path" @offset+length ("note")`, with the
+/// range and note only when the source carries them. `node_id` stays out: it
+/// identifies a location inside one fixture, not what the plugin reported.
+fn appendSource(out: *std.ArrayList(u8), alloc: std.mem.Allocator, source: wire.Value) sdk.Error!void {
+    try out.appendSlice(alloc, "  from \"");
+    var joined = false;
+    if (source.getString("root")) |root| {
+        try appendEscaped(out, alloc, root);
+        joined = true;
+    }
+    if (source.getString("path")) |path| {
+        if (joined) try out.append(alloc, '/');
+        try appendEscaped(out, alloc, path);
+    }
+    try out.append(alloc, '"');
+    if (source.getUint("offset")) |offset| {
+        if (source.getUint("length")) |length| {
+            var buffer: [48]u8 = undefined;
+            const range = std.fmt.bufPrint(&buffer, " @{d}+{d}", .{ offset, length }) catch
+                return error.OutOfMemory;
+            try out.appendSlice(alloc, range);
+        }
+    }
+    if (source.getString("note")) |note| {
+        try out.appendSlice(alloc, " (");
+        try appendQuoted(out, alloc, note);
+        try out.append(alloc, ')');
+    }
+    try out.append(alloc, '\n');
+}
+
+/// One value: numbers plain, strings quoted and escaped, bytes as hex, lists
+/// and maps bracketed (map values keep their own order).
+fn appendValue(out: *std.ArrayList(u8), alloc: std.mem.Allocator, item: wire.Value) sdk.Error!void {
+    switch (item) {
+        .nil => try out.appendSlice(alloc, "nil"),
+        .boolean => |flag| try out.appendSlice(alloc, if (flag) "true" else "false"),
+        .uint => |number| try appendNumber(out, alloc, number),
+        .int => |number| try appendNumber(out, alloc, number),
+        .float => |number| try appendNumber(out, alloc, number),
+        .string => |text| try appendQuoted(out, alloc, text),
+        .bytes => |data| {
+            try out.appendSlice(alloc, "0x");
+            for (data) |byte| {
+                var buffer: [2]u8 = undefined;
+                const hex = std.fmt.bufPrint(&buffer, "{x:0>2}", .{byte}) catch return error.OutOfMemory;
+                try out.appendSlice(alloc, hex);
+            }
+        },
+        .array => |items| {
+            try out.append(alloc, '[');
+            for (items, 0..) |element, index| {
+                if (index != 0) try out.appendSlice(alloc, ", ");
+                try appendValue(out, alloc, element);
+            }
+            try out.append(alloc, ']');
+        },
+        .map => |entries| {
+            try out.append(alloc, '{');
+            for (entries, 0..) |map_entry, index| {
+                if (index != 0) try out.appendSlice(alloc, ", ");
+                try appendQuoted(out, alloc, map_entry.key);
+                try out.appendSlice(alloc, ": ");
+                try appendValue(out, alloc, map_entry.value);
+            }
+            try out.append(alloc, '}');
+        },
+    }
+}
+
+fn appendNumber(out: *std.ArrayList(u8), alloc: std.mem.Allocator, number: anytype) sdk.Error!void {
+    var buffer: [64]u8 = undefined;
+    const text = std.fmt.bufPrint(&buffer, "{d}", .{number}) catch return error.OutOfMemory;
+    try out.appendSlice(alloc, text);
+}
+
+/// `"text"`, with quotes, backslashes and control characters escaped. UTF-8
+/// stays as it is, so a snapshot of Chinese labels and messages stays readable.
+fn appendQuoted(out: *std.ArrayList(u8), alloc: std.mem.Allocator, text: []const u8) sdk.Error!void {
+    try out.append(alloc, '"');
+    try appendEscaped(out, alloc, text);
+    try out.append(alloc, '"');
+}
+
+fn appendEscaped(out: *std.ArrayList(u8), alloc: std.mem.Allocator, text: []const u8) sdk.Error!void {
+    for (text) |byte| {
+        switch (byte) {
+            '\\' => try out.appendSlice(alloc, "\\\\"),
+            '"' => try out.appendSlice(alloc, "\\\""),
+            '\n' => try out.appendSlice(alloc, "\\n"),
+            '\r' => try out.appendSlice(alloc, "\\r"),
+            '\t' => try out.appendSlice(alloc, "\\t"),
+            else => if (byte < 0x20 or byte == 0x7f) {
+                var buffer: [4]u8 = undefined;
+                const escaped = std.fmt.bufPrint(&buffer, "\\x{x:0>2}", .{byte}) catch
+                    return error.OutOfMemory;
+                try out.appendSlice(alloc, escaped);
+            } else try out.append(alloc, byte),
+        }
+    }
+}
+
+fn findSchema(schemas: []const schema.RecordSchema, record_type: []const u8) ?schema.RecordSchema {
+    for (schemas) |record_schema| {
+        if (std.mem.eql(u8, record_schema.record_type, record_type)) return record_schema;
+    }
+    return null;
+}
+
+fn isNil(item: wire.Value) bool {
+    return switch (item) {
+        .nil => true,
+        else => false,
+    };
+}
 
 /// A `HostApiV1` that answers from a function instead of a real host.
 ///
@@ -184,6 +367,48 @@ pub const Stub = struct {
         var total: u64 = 0;
         for (self.emits.items) |batch| total += batch.records.len;
         return total;
+    }
+
+    /// Everything the recorded run reported as stable text, for golden tests:
+    /// the summary, the warnings, then every record in emission order with its
+    /// title, severity, values by field id and sources. Progress reports, log
+    /// lines and source node ids are left out, so the text only changes when
+    /// what the plugin reports changes.
+    ///
+    /// The same text on two runs of the same evidence is the assertion a
+    /// snapshot test makes:
+    ///
+    /// ```
+    /// const finish = (try lc.testing.callOk(arena, &table, 2, "run.start", params)).?;
+    /// const text = try stub.snapshot(arena, .{
+    ///     .schemas = plugin.records,
+    ///     .summary = finish.getString("summary"),
+    /// });
+    /// try std.testing.expectEqualStrings(expected, text);
+    /// ```
+    pub fn snapshot(self: *const Stub, alloc: std.mem.Allocator, options: SnapshotOptions) sdk.Error![]u8 {
+        var out: std.ArrayList(u8) = .empty;
+        errdefer out.deinit(alloc);
+        if (options.summary) |summary| {
+            try out.appendSlice(alloc, "summary: ");
+            try appendQuoted(&out, alloc, summary);
+            try out.append(alloc, '\n');
+        }
+        for (self.warnings.items) |warning| {
+            try out.appendSlice(alloc, "warning ");
+            try out.appendSlice(alloc, warning.code);
+            if (warning.file_id) |file_id| {
+                try out.append(alloc, ' ');
+                try appendQuoted(&out, alloc, file_id);
+            }
+            try out.appendSlice(alloc, ": ");
+            try appendQuoted(&out, alloc, warning.message);
+            try out.append(alloc, '\n');
+        }
+        for (self.emits.items) |batch| {
+            for (batch.records) |record| try appendRecord(&out, alloc, options.schemas, record);
+        }
+        return out.toOwnedSlice(alloc);
     }
 
     fn instance(context: ?*anyopaque) *Stub {
@@ -577,6 +802,113 @@ test "the stub records progress, warnings and logs on its own" {
     try testing.expectEqualStrings("hello", stub.logs.items[0].message);
     try testing.expectEqual(abi.LOG_INFO, stub.logs.items[0].level);
     try testing.expect(stub.saw(protocol.method.file_release));
+}
+
+/// One record type with a mix of field kinds, so a snapshot shows values by
+/// field id, nested values and a nil value left out.
+const SNAPSHOT_SCHEMA = schema.RecordSchema.new("demo.snapshot", "快照", &.{
+    schema.Field.new("name", "名称", .text).asKey(),
+    schema.Field.new("uid", "UID", .int),
+    schema.Field.new("flags", "标记", .json),
+    schema.Field.new("note", "备注", .text),
+});
+
+const SnapshotFixture = struct {
+    fn analyze(run: *const run_mod.Run) sdk.Error!void {
+        const arena = run.context().arena;
+        const view = try run.requireView();
+        const file = (try view.open("etc/os-release")) orelse return;
+
+        try run.warn("UNREADABLE", "镜像尾部无法读取");
+        try run.warnFile(file, "MALFORMED_LINE", "第 2 行字段不足");
+        try run.record("demo.snapshot", &.{
+            wire.str("root"),
+            .{ .uint = 0 },
+            try value.map(arena, &.{value.entry("a", .{ .boolean = true })}),
+            .nil,
+        })
+            .from(&file)
+            .at(0, 9)
+            .note("第 1 行")
+            .title("root (0)")
+            .severity(.high)
+            .emit();
+        try run.record("demo.snapshot", &.{
+            wire.str("daemon"),
+            .{ .int = -1 },
+            try value.array(arena, &.{
+                .{ .boolean = true },
+                .{ .float = 1.5 },
+                wire.str("x"),
+            }),
+            wire.str("第\"一\"行\n换行"),
+        }).title("daemon").emit();
+        try run.progress(1, 1, "done");
+        run.setSummary("1 条记录");
+    }
+
+    const plugin = plugin_mod.Plugin{
+        .id = "com.example.snapshot",
+        .records = &.{SNAPSHOT_SCHEMA},
+        .analyzers = &.{plugin_mod.analyzer("snapshot", analyze)},
+    };
+};
+
+test "a whole run snapshots as stable text" {
+    var stub = Stub.init(testing.allocator, null, Fixture.handle);
+    defer stub.deinit();
+
+    var api = stub.api();
+    var table = try entry(&api, &SnapshotFixture.plugin);
+    defer table.destroy(table.instance);
+
+    var arena_state = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const start = protocol.RunStart{
+        .run_id = "run-1",
+        .analyzer = "snapshot",
+        .target = .{ .system = .{
+            .view_id = "view-1",
+            .label = "Linux",
+            .system = .{
+                .id = "linux@part:0",
+                .family = "linux",
+                .product = "Linux",
+                .root = "part:0",
+            },
+            .mounts = &.{.{ .path = "", .root = "part:0", .source = "root" }},
+        } },
+        .locale = "zh-CN",
+    };
+    const finish = (try callOk(arena, &table, 2, protocol.method.run_start, try start.toValue(arena))).?;
+    try testing.expectEqualStrings("1 条记录", finish.getString("summary").?);
+
+    const options = SnapshotOptions{
+        .schemas = SnapshotFixture.plugin.records,
+        .summary = finish.getString("summary"),
+    };
+    const expected =
+        \\summary: "1 条记录"
+        \\warning UNREADABLE: "镜像尾部无法读取"
+        \\warning MALFORMED_LINE "file-1": "第 2 行字段不足"
+        \\demo.snapshot "root (0)" [high]
+        \\  flags = {"a": true}
+        \\  name = "root"
+        \\  uid = 0
+        \\  from "part:0/etc/os-release" @0+9 ("第 1 行")
+        \\demo.snapshot "daemon"
+        \\  flags = [true, 1.5, "x"]
+        \\  name = "daemon"
+        \\  note = "第\"一\"行\n换行"
+        \\  uid = -1
+        \\
+    ;
+    const first = try stub.snapshot(arena, options);
+    try testing.expectEqualStrings(expected, first);
+    // The same run gives the same text; progress reports never enter it.
+    try testing.expectEqualStrings(first, try stub.snapshot(arena, options));
 }
 
 test "an unknown method and an unknown analyzer are error replies" {

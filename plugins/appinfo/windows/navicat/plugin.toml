@@ -3,6 +3,9 @@
 id = "com.wxjzc.navicat"
 name = "Navicat 连接分析"
 version = "1.0.3"
+description = "Navicat 连接分析：从 NTUSER.DAT 提取已保存的数据库连接与密码"
+publisher = "WXjzcccc"
+license = "MIT"
 protocol = 2
 # navicatanalyzer.dll / libnavicatanalyzer.so / libnavicatanalyzer.dylib,
 # built from build.zig; `library` is the build.zig artifact name without an
